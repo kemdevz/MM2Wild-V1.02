@@ -70,7 +70,7 @@ function Player({ bot, name, coin, side, faded = false, level }) {
   );
 }
 
-function ValuePanel({ faded = false, blue = false }) {
+function ValuePanel({ faded = false, blue = false, player }) {
   return (
     <div
       className={`rounded-xl p-4 transition-opacity duration-300 flex-1 max-w-md ${faded ? "opacity-55" : ""}`}
@@ -81,19 +81,19 @@ function ValuePanel({ faded = false, blue = false }) {
       <div className="flex flex-col items-center justify-center gap-0.5">
         <div className="flex items-center justify-center gap-1">
           <img src="/coin.webp" className="bg-cover bg-center size-5" alt="" />
-          <span className="tabular-nums font-semibold">690</span>
+          <span className="tabular-nums font-semibold">{player?.wager || 0}</span>
         </div>
         <div className="flex items-center justify-center gap-1 text-accent font-medium text-xs sm:text-sm">
           <p>50.0% Chance</p>
           <div className="size-1 bg-accent rounded-full hidden sm:block" />
-          <p className="hidden sm:block">1 Items</p>
+          <p className="hidden sm:block">{player?.items?.length || 0} Items</p>
         </div>
       </div>
     </div>
   );
 }
 
-function ItemCard() {
+function ItemCard({ item }) {
   return (
     <div
       className="won-item flex flex-col rounded-xl shadow-lg overflow-hidden relative p-3 py-4"
@@ -105,16 +105,16 @@ function ItemCard() {
       <div className="w-10/12 mx-auto aspect-square relative">
         <img
           loading="lazy"
-          src="https://cdn.mm2wild.com/items/68.webp"
-          alt="Darksword"
+          src={item.imageUrl}
+          alt={item.name}
           className="absolute top-1/2 left-1/2 -translate-1/2 size-10/12 object-contain transition-opacity duration-300 no-interaction drop-shadow-[0_12px_10px_rgba(0,0,0,0.3)]"
         />
       </div>
       <div className="flex flex-col mt-2 relative items-center">
-        <p className="font-medium text-sm truncate w-full text-center">Darksword</p>
+        <p className="font-medium text-sm truncate w-full text-center">{item.name}</p>
         <div className="flex items-center gap-1.5">
           <img src="/coin.webp" className="bg-cover bg-center size-4" alt="" />
-          <span className="tabular-nums font-semibold text-sm">690</span>
+          <span className="tabular-nums font-semibold text-sm">{item.value}</span>
         </div>
       </div>
     </div>
@@ -188,7 +188,7 @@ function IdlePlayer({ avatar, coin, name, side }) {
   );
 }
 
-function IdleItemCard() {
+function IdleItemCard({ item }) {
   return (
     <div
       className="won-item flex flex-col rounded-xl shadow-lg overflow-hidden relative p-3 py-4"
@@ -200,36 +200,35 @@ function IdleItemCard() {
       <div className="w-10/12 mx-auto aspect-square relative">
         <img
           loading="lazy"
-          src="https://cdn.mm2wild.com/items/138.webp"
-          alt="Winter's Edge"
+          src={item.imageUrl}
+          alt={item.name}
           className="absolute top-1/2 left-1/2 -translate-1/2 size-10/12 object-contain opacity-0 transition-opacity duration-300 no-interaction drop-shadow-[0_12px_10px_rgba(0,0,0,0.3)]"
           style={{ opacity: 1 }}
         />
       </div>
       <div className="flex flex-col mt-2 relative items-center">
-        <p className="font-medium text-sm truncate w-full text-center">Winter&apos;s Edge</p>
+        <p className="font-medium text-sm truncate w-full text-center">{item.name}</p>
         <div className="flex items-center gap-1.5">
           <img src="/coin.webp" className="bg-cover bg-center size-4" alt="" />
-          <span className="tabular-nums font-semibold text-sm">10</span>
+          <span className="tabular-nums font-semibold text-sm">{item.value}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function IdleModalContent({ onClose, orange }) {
+function IdleModalContent({ onClose, orange, game, onJoin, actionLabel, canJoin }) {
   const [isFairnessOpen, setIsFairnessOpen] = useState(false);
   const playerCoin = orange ? "heads" : "tails";
   const waitingCoin = orange ? "tails" : "heads";
   const joinColor = orange ? "243, 138, 57" : "35, 105, 255";
   const joinShadow = orange ? "171, 91, 29" : "0, 73, 229";
-  const playerAvatar =
-    "https://tr.rbxcdn.com/30DAY-AvatarHeadshot-B2EF54E3E066D91C690A43B85F79AFAA-Png/180/180/AvatarHeadshot/Webp/noFilter";
+  const playerAvatar = game.creator.avatar;
 
   return (
     <div className="bg-[#192243] sm:rounded-2xl shadow-lg flex flex-col max-h-[calc(100vh-48px)] overflow-hidden relative">
       <div className="max-h-[calc(100dvh-48px)] overflow-y-auto relative [&amp;::-webkit-scrollbar]:w-1 [&amp;::-webkit-scrollbar-track]:bg-transparent [&amp;::-webkit-scrollbar-thumb]:bg-primary [&amp;::-webkit-scrollbar-thumb]:rounded-full [&amp;::-webkit-scrollbar-thumb:hover]:bg-primary/80">
-        <h2 id="coinflip-view-title" className="sr-only">Coinflip #253873</h2>
+        <h2 id="coinflip-view-title" className="sr-only">Coinflip #{game.number}</h2>
         <button type="button" className="text-accent cursor-pointer absolute top-4 right-4 z-1" onClick={onClose} aria-label="Close coinflip">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="size-4.5" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" aria-hidden="true">
             <path fill="none" stroke="currentColor" d="M20 4 4 20M4 4l16 16" />
@@ -248,7 +247,7 @@ function IdleModalContent({ onClose, orange }) {
                 </div>
               </div>
             </div>
-            <IdlePlayer avatar={playerAvatar} coin={playerCoin} name="traroblox1236" side="left" />
+            <IdlePlayer avatar={playerAvatar} coin={playerCoin} name={game.creator.username} side="left" />
             <IdlePlayer coin={waitingCoin} side="right" />
           </div>
 
@@ -263,12 +262,12 @@ function IdleModalContent({ onClose, orange }) {
                 <div className="flex flex-col items-center justify-center gap-0.5">
                   <div className="flex items-center justify-center gap-1">
                     <img src="/coin.webp" className="bg-cover bg-center size-5" alt="" />
-                    <span className="tabular-nums font-semibold">10</span>
+                    <span className="tabular-nums font-semibold">{game.creator.wager}</span>
                   </div>
                   <div className="flex items-center justify-center gap-1 text-accent font-medium text-xs sm:text-sm">
                     <p>50% Chance</p>
                     <div className="size-1 bg-accent rounded-full hidden sm:block" />
-                    <p className="hidden sm:block">1 Items</p>
+                    <p className="hidden sm:block">{game.creator.items.length} Items</p>
                   </div>
                 </div>
               </div>
@@ -279,7 +278,7 @@ function IdleModalContent({ onClose, orange }) {
                 }}
               >
                 <div className="flex flex-col items-center justify-center">
-                  <button type="button" className="relative cursor-pointer outline-none flex select-none transition-opacity group/button h-10.5 sm:h-11.5 w-full">
+                  <button type="button" disabled={!canJoin} onClick={onJoin} className="relative cursor-pointer outline-none flex select-none transition-opacity disabled:opacity-40 disabled:pointer-events-none group/button h-10.5 sm:h-11.5 w-full">
                     <div
                       className="absolute left-0 right-0 bottom-0 rounded-lg pointer-events-none"
                       style={{ top: "var(--sb-shadow-size,3px)", backgroundColor: `rgb(${joinShadow})` }}
@@ -288,7 +287,7 @@ function IdleModalContent({ onClose, orange }) {
                       className="rounded-lg size-full flex items-center relative transition-transform duration-125 will-change-transform group-hover/button:-translate-y-0.5 group-active/button:translate-y-0 text-sm sm:text-base px-4.5 font-bold"
                       style={{ height: "calc(100% - var(--sb-shadow-size,3px))", backgroundColor: `rgb(${joinColor})`, color: "rgb(255, 255, 255)" }}
                     >
-                      <div className="transition-opacity flex items-center justify-center size-full" style={{ filter: `drop-shadow(rgb(${joinShadow}) 0px 2px 0px)` }}>JOIN</div>
+                      <div className="transition-opacity flex items-center justify-center size-full" style={{ filter: `drop-shadow(rgb(${joinShadow}) 0px 2px 0px)` }}>{actionLabel}</div>
                     </div>
                   </button>
                 </div>
@@ -297,7 +296,7 @@ function IdleModalContent({ onClose, orange }) {
 
             <div className="flex items-start gap-8 justify-center h-64 overflow-y-auto scrollbar-hide pb-6">
               <div className="transition-opacity duration-300 flex-1 max-w-md">
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2"><IdleItemCard /></div>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">{game.creator.items.map((item) => <IdleItemCard key={item.id} item={item} />)}</div>
               </div>
               <div className="transition-opacity duration-300 flex-1 max-w-md">
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">
@@ -317,7 +316,7 @@ function IdleModalContent({ onClose, orange }) {
             <div className="flex items-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 512 512" className="size-5 text-[#E5AD4E]" aria-hidden="true"><path fill="currentColor" d={coinIconPath} /></svg>
               <button type="button" className="font-semibold flex items-center gap-1.5 cursor-pointer" onClick={() => setIsFairnessOpen((isOpen) => !isOpen)} aria-expanded={isFairnessOpen} aria-controls="coinflip-idle-fairness-details">
-                Coinflip <span className="inline-block text-accent italic -skew-x-8">#253873</span>
+                Coinflip <span className="inline-block text-accent italic -skew-x-8">#{game.number}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={`size-4 transition-transform duration-300 text-accent ${isFairnessOpen ? "rotate-180" : ""}`} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path fill="none" stroke="currentColor" d="m6 9 6 6 6-6" /></svg>
               </button>
             </div>
@@ -328,7 +327,7 @@ function IdleModalContent({ onClose, orange }) {
           </div>
           <div id="coinflip-idle-fairness-details" className={`overflow-hidden transition-all duration-300 ease-in-out ${isFairnessOpen ? "max-h-27" : "max-h-0"}`}>
             <div className="space-y-1 pt-4 text-accent font-semibold text-sm">
-              <p className="truncate">HASHED SEED: <span className="text-accent/70">be762edb25b33035e7c5531657964f9c1e350e81ec2ed61f5b92ddc4e3f9d136</span></p>
+              <p className="truncate">HASHED SEED: <span className="text-accent/70">{game.fairness.hashedSeed}</span></p>
               <p className="truncate">SERVER SEED: <span className="text-accent/70">Concealed</span></p>
               <p className="truncate">EOS BLOCK: <span className="text-accent/70">Unavailable</span></p>
               <p className="truncate">EOS HASH: <span className="text-accent/70">Unavailable</span></p>
@@ -340,11 +339,13 @@ function IdleModalContent({ onClose, orange }) {
   );
 }
 
-function ModalContent({ onClose }) {
+function ModalContent({ onClose, game }) {
   const [isFairnessOpen, setIsFairnessOpen] = useState(false);
+  const creatorWon = game.winnerUuid === game.creator.uuid;
+  const joinerWon = game.winnerUuid === game.joiner?.uuid;
   return (
     <div className="max-h-[calc(100dvh-48px)] overflow-y-auto relative rounded-2xl bg-[#192243] [&amp;::-webkit-scrollbar]:w-1 [&amp;::-webkit-scrollbar-track]:bg-transparent [&amp;::-webkit-scrollbar-thumb]:bg-primary [&amp;::-webkit-scrollbar-thumb]:rounded-full [&amp;::-webkit-scrollbar-thumb:hover]:bg-primary/80">
-      <h2 id="coinflip-view-title" className="sr-only">Coinflip #253873</h2>
+      <h2 id="coinflip-view-title" className="sr-only">Coinflip #{game.number}</h2>
       <button type="button" className="text-accent cursor-pointer absolute top-4 right-4 z-1" onClick={onClose} aria-label="Close coinflip">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="size-4.5" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" aria-hidden="true">
           <path fill="none" stroke="currentColor" d="M20 4 4 20M4 4l16 16" />
@@ -359,25 +360,25 @@ function ModalContent({ onClose }) {
           <div className="flex flex-col gap-5 items-center z-1 absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2">
             <div className="size-22 sm:size-40 bg-[#141A32]/40 rounded-full flex items-center justify-center relative mb-10 sm:mb-0">
               <div className="size-[88%] relative">
-                <img src="/coinflip/heads.webp" alt="heads" className="size-full object-cover pointer-events-none" loading="eager" />
+                <video src={`/coinflip/${game.creator.side[0]}2${game.winnerSide[0]}.webm`} poster={`/coinflip/${game.winnerSide}.webp`} className="size-full object-cover pointer-events-none" autoPlay muted playsInline />
               </div>
             </div>
           </div>
-          <Player bot="https://tr.rbxcdn.com/30DAY-AvatarHeadshot-452CB76CD68A6768A29034353FB9DDD3-Png/180/180/AvatarHeadshot/Webp/noFilter" name="SquiddyRBX" coin="tails" side="left" faded level="47" />
-          <Player bot="/bots/messi.webp" name="Messi" coin="heads" side="right" />
+          <Player bot={game.creator.avatar} name={game.creator.username} coin={game.creator.side} side="left" faded={!creatorWon} />
+          <Player bot={game.joiner.avatar} name={game.joiner.username} coin={game.joiner.side} side="right" faded={!joinerWon} />
         </div>
 
         <div className="relative px-6 flex flex-col gap-4">
           <div className="flex items-start gap-8 justify-center">
-            <ValuePanel faded />
-            <ValuePanel blue />
+            <ValuePanel faded={!creatorWon} player={game.creator} />
+            <ValuePanel blue faded={!joinerWon} player={game.joiner} />
           </div>
           <div className="flex items-start gap-8 justify-center h-64 overflow-y-auto scrollbar-hide pb-6">
             <div className="transition-opacity duration-300 opacity-55 flex-1 max-w-md">
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2"><ItemCard /></div>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">{game.creator.items.map((item) => <ItemCard key={item.id} item={item} />)}</div>
             </div>
             <div className="transition-opacity duration-300 flex-1 max-w-md">
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2"><ItemCard /></div>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">{game.joiner.items.map((item) => <ItemCard key={item.id} item={item} />)}</div>
             </div>
           </div>
           <div className="absolute left-0 right-0 bottom-0 h-10 bg-linear-to-b from-transparent to-[#192243]/80 pointer-events-none" />
@@ -396,7 +397,7 @@ function ModalContent({ onClose }) {
               aria-expanded={isFairnessOpen}
               aria-controls="coinflip-fairness-details"
             >
-              Coinflip <span className="inline-block text-accent italic -skew-x-8">#253873</span>
+              Coinflip <span className="inline-block text-accent italic -skew-x-8">#{game.number}</span>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={`size-4 transition-transform duration-300 text-accent ${isFairnessOpen ? "rotate-180" : ""}`} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path fill="none" stroke="currentColor" d="m6 9 6 6 6-6" />
               </svg>
@@ -411,10 +412,9 @@ function ModalContent({ onClose }) {
         </div>
         <div id="coinflip-fairness-details" className={`overflow-hidden transition-all duration-300 ease-in-out ${isFairnessOpen ? "max-h-27" : "max-h-0"}`}>
           <div className="space-y-1 pt-4 text-accent font-semibold text-sm">
-            <p className="truncate">HASHED SEED: <span className="text-accent/70">ae28a6cf1b9477826e7fa0e24bd5fed8360fd224490a740af9b291949222e374</span></p>
-            <p className="truncate">SERVER SEED: <span className="text-accent/70">9e70773e173b37f7ef9d6330ad06ce37f2f0861c5419666fb366faa6d51164da</span></p>
-            <p className="truncate">EOS BLOCK: <span className="text-accent/70">517673723</span></p>
-            <p className="truncate">EOS HASH: <span className="text-accent/70">1edb12fb51366ac47f175b6fa0db228091e51b9638ce0908f57cce3e1bfe50b3</span></p>
+            <p className="truncate">HASHED SEED: <span className="text-accent/70">{game.fairness.hashedSeed}</span></p>
+            <p className="truncate">SERVER SEED: <span className="text-accent/70">{game.fairness.serverSeed}</span></p>
+            <p className="truncate">RESULT HASH: <span className="text-accent/70">{game.fairness.resultHash}</span></p>
           </div>
         </div>
       </div>
@@ -422,7 +422,7 @@ function ModalContent({ onClose }) {
   );
 }
 
-export default function CoinflipViewModal({ onClose, idle = false, orange = false }) {
+export default function CoinflipViewModal({ onClose, onJoin, actionLabel = "JOIN", canJoin = true, game, idle = false, orange = false }) {
   const [isOpen, setIsOpen] = useState(true);
   const closeTimerRef = useRef(null);
   const isClosingRef = useRef(false);
@@ -499,9 +499,9 @@ export default function CoinflipViewModal({ onClose, idle = false, orange = fals
         }}
       >
         {idle ? (
-          <IdleModalContent onClose={requestClose} orange={orange} />
+          <IdleModalContent onClose={requestClose} onJoin={onJoin} actionLabel={actionLabel} canJoin={canJoin} orange={orange} game={game} />
         ) : (
-          <ModalContent onClose={requestClose} />
+          <ModalContent onClose={requestClose} game={game} />
         )}
       </div>
     </>,

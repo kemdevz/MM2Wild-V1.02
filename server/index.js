@@ -1,6 +1,12 @@
 import { createRainState, createSupabaseRainStore, formatRainState } from "./rain.js";
 import { createRouletteState } from "./roulette.js";
 import { transferUserTip } from "./tips.js";
+import {
+  createCoinflip,
+  joinCoinflip,
+  listCoinflipItems,
+  listCoinflips,
+} from "./coinflip.js";
 
 const json = (body, status = 200, extraHeaders = {}) =>
   new Response(JSON.stringify(body), {
@@ -786,6 +792,29 @@ export class ChatRoom {
   }
 }
 
+async function coinflipRequest(request, env) {
+  const sessionCookie = cookieValue(request, "mm2wild_session");
+  const user = await resolveSessionUser(sessionCookie, env);
+  if (!user) return missingSession(request);
+
+  try {
+    const body = await request.json().catch(() => null);
+    const action = String(body?.action || "");
+    const game = action === "join"
+      ? await joinCoinflip(env, user, body?.gameId, body?.itemIds)
+      : await createCoinflip(env, user, body?.itemIds, body?.side);
+    const refreshedUser = await resolveSessionUser(sessionCookie, env);
+    return json({ game, balance: Number(refreshedUser?.mm2_balance || 0) }, action === "join" ? 200 : 201);
+  } catch (error) {
+    const message = error.message || "The coinflip could not be updated.";
+    const status = /invalid|select|choose|outside|own coinflip/i.test(message) ? 400
+      : /no longer open|not found/i.test(message) ? 409
+      : /insufficient/i.test(message) ? 409
+      : 503;
+    return json({ error: message }, status);
+  }
+}
+
 function chatColorForLevel(level) {
   if (level >= 30) return "#F33972";
   if (level >= 20) return "#F36D39";
@@ -1156,6 +1185,23 @@ export default {
     }
     if (url.pathname === "/api/session" && request.method === "GET") {
       return getSession(request, env);
+    }
+    if (url.pathname === "/api/coinflip" && request.method === "GET") {
+      try {
+        return json({ games: await listCoinflips(env, { limit: url.searchParams.get("limit") }) });
+      } catch (error) {
+        return json({ error: error.message || "Could not load coinflips." }, 503);
+      }
+    }
+    if (url.pathname === "/api/coinflip/items" && request.method === "GET") {
+      try {
+        return json({ items: await listCoinflipItems(env) });
+      } catch (error) {
+        return json({ error: error.message || "Could not load items." }, 503);
+      }
+    }
+    if (url.pathname === "/api/coinflip" && request.method === "POST") {
+      return coinflipRequest(request, env);
     }
     if (url.pathname === "/api/tips" && request.method === "POST") {
       return sendUserTip(request, env);

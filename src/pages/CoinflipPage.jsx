@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import LineWobbleLoader from "../components/LineWobbleLoader";
 import CoinflipCreateModal from "../components/CoinflipCreateModal";
@@ -37,12 +37,19 @@ function CoinflipPlayerTooltip({ tooltip }) {
   );
 }
 
-function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = false }) {
+function CoinflipWinnerRow({ game, history = true, faded = false }) {
+  const winnerSide = game.winnerSide;
   const tailsWon = winnerSide === "tails";
+  const creatorWon = game.winnerUuid === game.creator.uuid;
+  const joinerWon = game.winnerUuid === game.joiner?.uuid;
+  const firstItem = game.creator.items[0] || {};
+  const secondItem = game.creator.items[1] || firstItem;
+  const winner = creatorWon ? game.creator : game.joiner;
 
   return (
           <div
             data-v-e7c3a4a2=""
+            data-game-id={game.id}
             className={`@container/coinflip-card will-change-transform coinflip-list-item ${history ? "is-history coinflip-public-row" : "coinflip-active-row"} ${faded ? "coinflip-faded-row" : ""}`}
             bis_skin_checked="1"
             style={{}}
@@ -61,11 +68,11 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                   bis_skin_checked="1"
                 >
                   <div
-                    className={`flex items-center gap-4 transition-opacity duration-300 ${tailsWon ? "" : "opacity-55"}`}
+                    className={`flex items-center gap-4 transition-opacity duration-300 ${creatorWon ? "" : "opacity-55"}`}
                     bis_skin_checked="1"
                   >
                     <div
-                      className={`coinflip-avatar-frame size-16 relative bg-[#232E4E]/65 border-2 rounded-xl p-0.75 flex items-center justify-center transition-colors duration-300 ${tailsWon ? "coinflip-winner-indicator border-[#5CDF9A]" : "border-[#314274]"}`}
+                      className={`coinflip-avatar-frame size-16 relative bg-[#232E4E]/65 border-2 rounded-xl p-0.75 flex items-center justify-center transition-colors duration-300 ${creatorWon ? "coinflip-winner-indicator border-[#5CDF9A]" : "border-[#314274]"}`}
                       bis_skin_checked="1"
                     >
                       <div
@@ -85,9 +92,9 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                           bis_skin_checked="1"
                         >
                           <img
-                            src="https://tr.rbxcdn.com/30DAY-AvatarHeadshot-B2EF54E3E066D91C690A43B85F79AFAA-Png/180/180/AvatarHeadshot/Webp/noFilter"
+                            src={game.creator.avatar}
                             className="size-9/12 object-contain object-center rounded-[5px] ease-in-out opacity-0 transition-opacity no-interaction"
-                            alt="https://tr.rbxcdn.com/30DAY-AvatarHeadshot-B2EF54E3E066D91C690A43B85F79AFAA-Png/180/180/AvatarHeadshot/Webp/noFilter"
+                            alt={game.creator.username}
                             loading="lazy"
                             fetchPriority="low"
                             style={{ opacity: "1" }}
@@ -99,8 +106,8 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                         bis_skin_checked="1"
                       >
                         <img
-                          src="/coinflip/tails.webp"
-                          alt="amirweldi"
+                          src={`/coinflip/${game.creator.side}.webp`}
+                          alt={game.creator.username}
                           className="size-full object-cover no-interaction"
                         />
                       </div>
@@ -140,11 +147,11 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                     ></div>
                   </div>
                   <div
-                    className={`flex items-center gap-4 transition-opacity duration-300 ${tailsWon ? "opacity-55" : ""}`}
+                    className={`flex items-center gap-4 transition-opacity duration-300 ${joinerWon ? "" : "opacity-55"}`}
                     bis_skin_checked="1"
                   >
                     <div
-                      className={`coinflip-avatar-frame size-16 relative bg-[#232E4E]/65 border-2 rounded-xl p-0.75 flex items-center justify-center transition-colors duration-300 ${tailsWon ? "border-[#314274]" : "coinflip-winner-indicator border-[#5CDF9A]"}`}
+                      className={`coinflip-avatar-frame size-16 relative bg-[#232E4E]/65 border-2 rounded-xl p-0.75 flex items-center justify-center transition-colors duration-300 ${joinerWon ? "coinflip-winner-indicator border-[#5CDF9A]" : "border-[#314274]"}`}
                       bis_skin_checked="1"
                     >
                       <div
@@ -164,9 +171,9 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                           bis_skin_checked="1"
                         >
                           <img
-                            src="/bots/travis.webp"
+                            src={game.joiner?.avatar}
                             className="size-9/12 object-contain object-center rounded-[5px] ease-in-out opacity-0 transition-opacity no-interaction"
-                            alt="bots/travis.webp"
+                            alt={game.joiner?.username}
                             loading="lazy"
                             fetchPriority="low"
                             style={{ opacity: "1" }}
@@ -178,8 +185,8 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                         bis_skin_checked="1"
                       >
                         <img
-                          src="/coinflip/heads.webp"
-                          alt="Travis"
+                          src={`/coinflip/${game.joiner?.side || (game.creator.side === "heads" ? "tails" : "heads")}.webp`}
+                          alt={game.joiner?.username}
                           className="size-full object-cover no-interaction"
                         />
                       </div>
@@ -214,8 +221,8 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                     bis_skin_checked="1"
                   >
                     <img
-                      src="https://cdn.mm2wild.com/items/138.webp"
-                      alt="Winter's Edge"
+                      src={firstItem.imageUrl}
+                      alt={firstItem.name}
                       className="coinflip-row-item-image absolute inset-0 size-full object-contain group-hover:scale-110 transition-transform will-change-transform opacity-0 ease-in-out no-interaction"
                       loading="lazy"
                       fetchPriority="low"
@@ -229,8 +236,8 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                     bis_skin_checked="1"
                   >
                     <img
-                      src="https://cdn.mm2wild.com/items/138.webp"
-                      alt="Winter's Edge"
+                      src={secondItem.imageUrl}
+                      alt={secondItem.name}
                       className="coinflip-row-item-image absolute inset-0 size-full object-contain group-hover:scale-110 transition-transform will-change-transform opacity-0 ease-in-out no-interaction"
                       loading="lazy"
                       fetchPriority="low"
@@ -241,7 +248,7 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                     className="size-16 items-center justify-center rounded-full border-[5px] border-[#243157] bg-[#1B2542] text-sm z-1 hidden sm:hidden md:flex @[950px]/coinflip-card:hidden"
                     bis_skin_checked="1"
                   >
-                    <p className="font-semibold text-accent">+1</p>
+                    <p className="font-semibold text-accent">+{Math.max(game.creator.items.length - 2, 0)}</p>
                   </div>
                 </div>
                 <div
@@ -262,14 +269,14 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                       src="/coin.webp"
                       className="bg-cover bg-center size-4.5"
                     />
-                    <span className="tabular-nums font-semibold">20</span>
+                    <span className="tabular-nums font-semibold">{game.creator.wager + (game.joiner?.wager || 0)}</span>
                   </div>
                   <p className="text-accent font-semibold text-sm">
                     <span className="normal-nums">(</span>
                     <span className="tabular-nums font-semibold">
-                      10
+                      {game.minimum}
                     </span> -{" "}
-                    <span className="tabular-nums font-semibold">11</span>
+                    <span className="tabular-nums font-semibold">{game.maximum}</span>
                     <span className="normal-nums">)</span>
                   </p>
                 </div>
@@ -297,11 +304,9 @@ function CoinflipWinnerRow({ winnerSide = "heads", history = false, faded = fals
                         bis_skin_checked="1"
                       >
                         <img
-                          src={tailsWon
-                            ? "https://tr.rbxcdn.com/30DAY-AvatarHeadshot-B2EF54E3E066D91C690A43B85F79AFAA-Png/180/180/AvatarHeadshot/Webp/noFilter"
-                            : "/bots/travis.webp"}
+                          src={winner?.avatar}
                           className="size-9/12 object-contain object-center rounded-[5px] ease-in-out opacity-0 transition-opacity no-interaction"
-                          alt={tailsWon ? "amirweldi" : "Travis"}
+                          alt={winner?.username}
                           loading="lazy"
                           fetchPriority="low"
                           style={{ opacity: "1" }}
@@ -633,21 +638,21 @@ function FlippingCoinflipRow() {
   );
 }
 
-function JoinableCoinflipRow({ orange = false }) {
-  const playerAvatar =
-    "https://tr.rbxcdn.com/30DAY-AvatarHeadshot-B2EF54E3E066D91C690A43B85F79AFAA-Png/180/180/AvatarHeadshot/Webp/noFilter";
-  const playerName = "traroblox1236";
-  const playerSide = orange ? "heads" : "tails";
-  const opponentSide = orange ? "tails" : "heads";
-  const itemId = 138;
-  const itemName = "Winter's Edge";
-  const amount = 10;
-  const minimum = 10;
-  const maximum = 11;
+function JoinableCoinflipRow({ game, onJoin, currentUser }) {
+  const orange = game.creator.side === "heads";
+  const playerAvatar = game.creator.avatar;
+  const playerName = game.creator.username;
+  const playerSide = game.creator.side;
+  const opponentSide = playerSide === "heads" ? "tails" : "heads";
+  const item = game.creator.items[0] || {};
+  const amount = game.creator.wager;
+  const minimum = game.minimum;
+  const maximum = game.maximum;
 
   return (
     <div
       data-v-e7c3a4a2=""
+      data-game-id={game.id}
       className={`@container/coinflip-card will-change-transform is-joinable coinflip-list-item ${orange ? "coinflip-secondary-joinable-row" : "coinflip-primary-joinable-row"}`}
       bis_skin_checked="1"
     >
@@ -787,8 +792,8 @@ function JoinableCoinflipRow({ orange = false }) {
               bis_skin_checked="1"
             >
               <img
-                src={`https://cdn.mm2wild.com/items/${itemId}.webp`}
-                alt={itemName}
+                src={item.imageUrl}
+                alt={item.name}
                 className="coinflip-row-item-image absolute inset-0 size-full object-contain group-hover:scale-110 transition-transform will-change-transform opacity-0 ease-in-out no-interaction"
                 loading="lazy"
                 fetchPriority="low"
@@ -827,7 +832,9 @@ function JoinableCoinflipRow({ orange = false }) {
           <div className="flex items-center gap-2" bis_skin_checked="1">
             <button
               type="button"
-              className="relative cursor-pointer outline-none flex select-none transition-opacity group/button w-30 h-10.5"
+              disabled={currentUser?.uuid === game.creator.uuid}
+              onClick={(event) => { event.stopPropagation(); onJoin(game); }}
+              className="relative cursor-pointer outline-none flex select-none transition-opacity disabled:opacity-40 disabled:pointer-events-none group/button w-30 h-10.5"
             >
               <div
                 className="absolute left-0 right-0 bottom-0 rounded-lg pointer-events-none"
@@ -854,7 +861,7 @@ function JoinableCoinflipRow({ orange = false }) {
                   className="transition-opacity flex items-center justify-center size-full"
                   bis_skin_checked="1"
                 >
-                  JOIN
+                  {currentUser?.uuid === game.creator.uuid ? "YOUR GAME" : "JOIN"}
                 </div>
               </div>
             </button>
@@ -910,9 +917,12 @@ function JoinableCoinflipRow({ orange = false }) {
 }
 
 function CoinflipContent({
+  games,
+  currentUser,
   isPriceAscending,
   onTogglePrice,
   onCreateCoinflip,
+  onJoinCoinflip,
   onViewCoinflip,
 }) {
   const [playerTooltip, setPlayerTooltip] = useState(null);
@@ -1170,23 +1180,17 @@ function CoinflipContent({
           onClick={(event) => {
             const coinflipRow = event.target.closest(".coinflip-list-item");
             if (coinflipRow && event.currentTarget.contains(coinflipRow)) {
-              onViewCoinflip({
-                idle: coinflipRow.classList.contains("is-joinable"),
-                orange: coinflipRow.classList.contains(
-                  "coinflip-secondary-joinable-row",
-                ),
-              });
+              const game = games.find((entry) => entry.id === coinflipRow.dataset.gameId);
+              if (game) onViewCoinflip(game);
             }
           }}
           bis_skin_checked="1"
         >
-          <CoinflipWinnerRow />
-          <JoinableCoinflipRow />
-          <JoinableCoinflipRow orange />
-          <FlippingCoinflipRow />
-          <CoinflipWinnerRow winnerSide="tails" history />
-          <CoinflipWinnerRow history faded />
-          <CoinflipWinnerRow winnerSide="tails" history faded />
+          {games.map((game, index) => game.status === "open" ? (
+            <JoinableCoinflipRow key={game.id} game={game} currentUser={currentUser} onJoin={onJoinCoinflip} />
+          ) : (
+            <CoinflipWinnerRow key={game.id} game={game} history={index > 0} faded={index > 3} />
+          ))}
         </div>
         {hasMoreRows ? (
           <div className="flex justify-center">
@@ -1230,8 +1234,47 @@ function CoinflipContent({
 export default function CoinflipPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPriceAscending, setIsPriceAscending] = useState(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createModal, setCreateModal] = useState(null);
   const [viewModal, setViewModal] = useState(null);
+  const [games, setGames] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadGames = useCallback(async () => {
+    const response = await fetch("/api/coinflip?limit=100", { credentials: "include" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not load coinflips.");
+    setGames(data.games || []);
+    setViewModal((current) => current ? (data.games || []).find((game) => game.id === current.id) || current : null);
+  }, []);
+
+  const openCreate = () => {
+    if (!currentUser) { setError("Sign in to create a coinflip."); return; }
+    setError(""); setCreateModal({ type: "create" });
+  };
+  const openJoin = (game) => {
+    if (!currentUser) { setError("Sign in to join a coinflip."); return; }
+    if (currentUser.uuid === game.creator.uuid) { setError("You cannot join your own coinflip."); return; }
+    setError(""); setViewModal(null); setCreateModal({ type: "join", game });
+  };
+
+  const submitCoinflip = async ({ side, itemIds }) => {
+    setBusy(true); setError("");
+    try {
+      const payload = createModal.type === "join"
+        ? { action: "join", gameId: createModal.game.id, itemIds }
+        : { action: "create", side, itemIds };
+      const response = await fetch("/api/coinflip", {
+        method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "The coinflip could not be updated.");
+      window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: { mm2Balance: data.balance } }));
+      setCreateModal(null); setViewModal(data.game); await loadGames();
+    } catch (requestError) { setError(requestError.message); }
+    finally { setBusy(false); }
+  };
 
   const togglePriceOrder = () => {
     const rows = Array.from(
@@ -1277,9 +1320,14 @@ export default function CoinflipPage() {
   };
 
   useEffect(() => {
-    const loadingTimer = window.setTimeout(() => setIsLoading(false), 450);
-    return () => window.clearTimeout(loadingTimer);
-  }, []);
+    let disposed = false;
+    Promise.all([
+      loadGames(),
+      fetch("/api/session", { credentials: "include" }).then(async (response) => response.ok ? (await response.json()).user : null),
+    ]).then(([, user]) => { if (!disposed) setCurrentUser(user); }).catch((requestError) => { if (!disposed) setError(requestError.message); }).finally(() => { if (!disposed) setIsLoading(false); });
+    const refreshTimer = window.setInterval(() => loadGames().catch(() => {}), 2500);
+    return () => { disposed = true; window.clearInterval(refreshTimer); };
+  }, [loadGames]);
 
   if (isLoading) {
     return (
@@ -1293,18 +1341,27 @@ export default function CoinflipPage() {
     <>
       <div className="site-content coinflip-route">
         <CoinflipContent
+          games={games}
+          currentUser={currentUser}
           isPriceAscending={isPriceAscending}
           onTogglePrice={togglePriceOrder}
-          onCreateCoinflip={() => setIsCreateModalOpen(true)}
-          onViewCoinflip={(modal) => setViewModal(modal)}
+          onCreateCoinflip={openCreate}
+          onJoinCoinflip={openJoin}
+          onViewCoinflip={(game) => setViewModal(game)}
         />
       </div>
-      {isCreateModalOpen ? (
-        <CoinflipCreateModal onClose={() => setIsCreateModalOpen(false)} />
+      {error && !createModal ? <button type="button" onClick={() => setError("")} className="fixed z-[100000000] bottom-6 left-1/2 -translate-x-1/2 rounded-lg bg-[#351F35] px-4 py-3 text-[#FF9EAE] font-semibold">{error}</button> : null}
+      {createModal ? (
+        <CoinflipCreateModal onClose={() => !busy && setCreateModal(null)} onSubmit={submitCoinflip} game={createModal.game} busy={busy} error={error} />
       ) : null}
       {viewModal ? (
         <CoinflipViewModal
-          {...viewModal}
+          game={viewModal}
+          idle={viewModal.status === "open"}
+          orange={viewModal.creator.side === "heads"}
+          actionLabel={currentUser?.uuid === viewModal.creator.uuid ? "YOUR GAME" : "JOIN"}
+          canJoin={Boolean(currentUser && currentUser.uuid !== viewModal.creator.uuid)}
+          onJoin={() => openJoin(viewModal)}
           onClose={() => setViewModal(null)}
         />
       ) : null}

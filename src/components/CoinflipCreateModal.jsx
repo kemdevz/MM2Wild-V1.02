@@ -1,15 +1,54 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-function ModalContent({ onClose }) {
+function ModalContent({ onClose, onSubmit, game, busy = false, error = "" }) {
   const [selectedCoin, setSelectedCoin] = useState("heads");
   const [selectedItems, setSelectedItems] = useState(() => new Set());
   const [priceSort, setPriceSort] = useState("highest");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortMenuPosition, setSortMenuPosition] = useState(null);
+  const [search, setSearch] = useState("");
+  const [catalogItems, setCatalogItems] = useState([]);
   const sortButtonRef = useRef(null);
   const sortMenuRef = useRef(null);
   const itemsGridRef = useRef(null);
+
+  const selectedValue = Array.from(itemsGridRef.current?.children ?? []).reduce((total, card) => {
+    const name = card.querySelector("img[alt]")?.alt;
+    if (!name || !selectedItems.has(name)) return total;
+    return total + (Number(card.querySelector(".tabular-nums")?.textContent?.replace(/,/g, "")) || 0);
+  }, 0);
+  const minimum = Number(game?.minimum || 0);
+  const maximum = Number(game?.maximum || Number.POSITIVE_INFINITY);
+  const selectionValid = selectedItems.size > 0 && selectedValue >= minimum && selectedValue <= maximum;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/coinflip/items", { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not load items.");
+        setCatalogItems(data.items || []);
+      })
+      .catch((requestError) => {
+        if (requestError.name !== "AbortError") console.error(requestError);
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (!catalogItems.length) return;
+    const byName = new Map(catalogItems.map((item) => [item.name, item]));
+    Array.from(itemsGridRef.current?.children ?? []).forEach((card) => {
+      const image = card.querySelector("img[alt]");
+      const item = byName.get(image?.alt);
+      card.hidden = !item;
+      if (!item) return;
+      image.src = item.imageUrl;
+      const value = card.querySelector(".tabular-nums");
+      if (value) value.textContent = Number(item.value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+    });
+  });
 
   useEffect(() => {
     const itemCards = itemsGridRef.current?.children ?? [];
@@ -27,6 +66,17 @@ function ModalContent({ onClose }) {
     });
   }, [selectedItems]);
 
+  useEffect(() => {
+    const cards = Array.from(itemsGridRef.current?.children ?? []);
+    const knownNames = new Set(catalogItems.map((item) => item.name.toLowerCase()));
+    cards.forEach((card) => {
+      const name = card.querySelector("img[alt]")?.alt?.toLowerCase() || "";
+      const value = Number(card.querySelector(".tabular-nums")?.textContent?.replace(/,/g, "")) || 0;
+      card.hidden = (knownNames.size > 0 && !knownNames.has(name)) || !name.includes(search.trim().toLowerCase());
+      card.style.order = String((priceSort === "highest" ? -value : value) * 100);
+    });
+  }, [search, priceSort, catalogItems]);
+
   const toggleItemCard = (card) => {
     if (!card || !itemsGridRef.current?.contains(card)) return;
     const itemName = card.querySelector("img[alt]")?.alt;
@@ -34,7 +84,7 @@ function ModalContent({ onClose }) {
     setSelectedItems((currentItems) => {
       const nextItems = new Set(currentItems);
       if (nextItems.has(itemName)) nextItems.delete(itemName);
-      else nextItems.add(itemName);
+      else if (nextItems.size < 12) nextItems.add(itemName);
       return nextItems;
     });
   };
@@ -110,7 +160,7 @@ function ModalContent({ onClose }) {
                 d="M256 136c88.4 0 160 28.7 160 64s-71.6 64-160 64-160-28.7-160-64 71.6-64 160-64Zm0 216C114.6 352 0 287.5 0 208S114.6 64 256 64s256 64.5 256 144-114.6 144-256 144Zm-125.9-77.9c34.5 14.3 78.7 21.9 125 21.9 48.1 0 92.3-7.6 125.9-21.9 16.7-5.8 32.4-14.6 44.4-25.9 12.1-11.5 22.6-27.7 22.6-48.2 0-20.5-10.5-36.7-22.6-48.2-12-11.3-27.7-20.1-44.4-26.8-33.6-13.4-77.8-21-125.9-21-46.3 0-90.5 7.6-125 21-15.8 6.7-31.5 15.5-43.51 26.8C74.5 163.3 63.1 179.5 63.1 200c0 20.5 11.4 36.7 23.49 48.2 12.01 11.3 27.71 20.1 43.51 25.9ZM0 290.1c13.21 15.7 29.72 29.4 48 40v64.5c-30.21-21-48-46.7-48-74.6v-29.9Zm80 122v-63.8c28.4 13.1 60.9 23 96 29v64.3c-36.2-5.9-68.9-15.8-96-29.5Zm128-30.5c15.7 1.6 31.7 2.4 48 2.4s32.3-.8 48-2.4v64.2c-15.5 1.4-31.6 2.2-48 2.2s-32.5-.8-48-2.2v-64.2Zm128 60v-64.3c35.1-6 67.6-15.9 96-29v63.8c-27.1 13.7-59.8 23.6-96 29.5Zm128-111.5c18.3-10.6 34.8-24.3 48-40V320c0 27.9-17.8 53.6-48 74.6v-64.5Z"
               ></path>
             </svg>{" "}
-            CREATE COINFLIP{" "}
+            {game ? `JOIN COINFLIP #${game.number}` : "CREATE COINFLIP"}{" "}
           </h2>
           <button
             type="button"
@@ -172,6 +222,8 @@ function ModalContent({ onClose }) {
               <input
                 id="v-10-0"
                 placeholder="Search for items..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
                 className="bg-transparent outline-none size-full peer placeholder:text-accent px-2 font-medium text-sm"
               />
             </div>
@@ -4222,12 +4274,12 @@ function ModalContent({ onClose }) {
               bis_skin_checked="1"
             >
               <img src="/coin.webp" className="bg-cover bg-center size-5" />
-              <span className="tabular-nums">0</span>
+              <span className="tabular-nums">{selectedValue.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
             </div>
           </div>
           <div className="flex flex-col" bis_skin_checked="1">
             <p className="text-[13px] text-accent font-medium">ITEMS</p>
-            <p className="font-semibold">0</p>
+            <p className="font-semibold">{selectedItems.size}</p>
           </div>
           <div className="flex gap-2.5 sm:hidden ml-auto" bis_skin_checked="1">
             <button
@@ -4290,7 +4342,12 @@ function ModalContent({ onClose }) {
               />
             </button>
           </div>
-          <button className="relative cursor-pointer outline-none flex select-none transition-opacity opacity-40 pointer-events-none group/button h-11 w-full sm:w-auto">
+          <button
+            type="button"
+            disabled={!selectionValid || busy}
+            onClick={() => onSubmit?.({ side: selectedCoin, itemIds: [...selectedItems] })}
+            className={`relative cursor-pointer outline-none flex select-none transition-opacity group/button h-11 w-full sm:w-auto ${selectionValid && !busy ? "" : "opacity-40 pointer-events-none"}`}
+          >
             <div
               className="absolute left-0 right-0 bottom-0 rounded-lg pointer-events-none"
               style={{
@@ -4313,22 +4370,23 @@ function ModalContent({ onClose }) {
                 style={{ filter: "drop-shadow(rgb(211, 133, 2) 0px 2px 0px)" }}
                 bis_skin_checked="1"
               >
-                <span>BET</span>
+                <span>{busy ? "WAIT" : game ? "JOIN" : "BET"}</span>
                 <img
                   src="/coin.webp"
                   className="bg-cover bg-center size-4.5 mx-1.5"
                 />
-                <span className="tabular-nums">0</span>
+                <span className="tabular-nums">{selectedValue.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
               </div>
             </div>
           </button>
+          {error ? <p className="absolute right-6 bottom-full mb-2 rounded-lg bg-[#351F35] px-3 py-2 text-sm text-[#FF9EAE] font-semibold">{error}</p> : null}
         </div>
       </div>
     </div>
   );
 }
 
-export default function CoinflipCreateModal({ onClose }) {
+export default function CoinflipCreateModal({ onClose, onSubmit, game = null, busy = false, error = "" }) {
   const [isOpen, setIsOpen] = useState(true);
   const closeTimerRef = useRef(null);
 
@@ -4383,7 +4441,7 @@ export default function CoinflipCreateModal({ onClose }) {
         aria-labelledby="reka-dialog-title-v-18"
         data-state={isOpen ? "open" : "closed"}
       >
-        <ModalContent onClose={requestClose} />
+        <ModalContent onClose={requestClose} onSubmit={onSubmit} game={game} busy={busy} error={error} />
       </div>
     </>,
     document.body,
