@@ -71,5 +71,15 @@ export default defineConfig(({ mode }) => {
         loadedEnv.CLOUDFLARED_TURNSTILE_SITE_KEY || "",
       ),
     },
+    server: {
+      allowedHosts: ["mm2wild-v1-02.onrender.com"],
+      host: "0.0.0.0",
+    },
+    preview: {
+      allowedHosts: ["mm2wild-v1-02.onrender.com"],
+      host: "0.0.0.0",
+      port: 10000,
+      strictPort: true,
+    },
   };
 });
