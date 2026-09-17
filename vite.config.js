@@ -15,7 +15,10 @@ function localBackend(backendEnv) {
       backendEnv.CHAT_ANNOUNCE = chatServer.announceUserTip;
 
       devServer.middlewares.use(async (request, response, next) => {
-        const requestUrl = new URL(request.url, "http://localhost");
+        const requestUrl = new URL(
+          request.url,
+          `http://${request.headers.host || "localhost"}`,
+        );
         if (!requestUrl.pathname.startsWith("/api/")) return next();
 
         try {
@@ -72,11 +75,11 @@ export default defineConfig(({ mode }) => {
       ),
     },
     server: {
-      allowedHosts: ["mm2wild-v1-02.onrender.com"],
+      allowedHosts: ["mm2wild-v1-02.onrender.com", "localhost"],
       host: "0.0.0.0",
     },
     preview: {
-      allowedHosts: ["mm2wild-v1-02.onrender.com"],
+      allowedHosts: ["mm2wild-v1-02.onrender.com", "localhost"],
       host: "0.0.0.0",
       port: 10000,
       strictPort: true,
