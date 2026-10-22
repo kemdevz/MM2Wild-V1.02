@@ -37,7 +37,7 @@ const ITEM_BOX_SHADOW =
   "rgba(0, 0, 0, 0.25) 0px -4px 0px inset, rgba(255, 255, 255, 0.25) 0px 2.5px 0px inset";
 
 const BETTING_DURATION_MS = 20_000;
-const SPINNING_DURATION_MS = 6_000;
+const SPINNING_DURATION_MS = 5_000;
 const WAITING_DURATION_MS = 2_000;
 const MINING_BLOCK_DISPLAY_MS = 3_000;
 
@@ -82,13 +82,21 @@ function buildReel(views = 6) {
 
 const ROULETTE_REEL = buildReel(8);
 
+function iconForResult(colorId, tileIndex) {
+  const parsedIndex = Number(tileIndex);
+  if (Number.isInteger(parsedIndex) && parsedIndex >= 0) {
+    return REEL_PATTERN[parsedIndex % REEL_PATTERN.length]?.icon || COLOR_ICON[colorId] || "clover";
+  }
+  return COLOR_ICON[colorId] || "clover";
+}
+
 function formatNumber(n) {
   return Number(n || 0).toLocaleString("en-US", {
     maximumFractionDigits: 0,
   });
 }
 
-const RouletteReel = memo(function RouletteReel({ reel, offset, spinning, duration }) {
+const RouletteReel = memo(function RouletteReel({ reel, offset, spinning, duration, easing }) {
   return (
     <div className="relative">
       <div className="absolute top-7 sm:top-14 -translate-y-full w-45 h-25 sm:w-71 sm:h-40 left-1/2 -translate-x-1/2 pointer-events-none">
@@ -116,7 +124,7 @@ const RouletteReel = memo(function RouletteReel({ reel, offset, spinning, durati
           style={{
             transform: `translateX(${offset}px)`,
             transition: duration > 0
-              ? `transform ${duration}ms cubic-bezier(0.12, 0.66, 0.16, 1)`
+              ? `transform ${duration}ms ${easing}`
               : "none",
           }}
         >
@@ -172,6 +180,7 @@ export default function RoulettePage() {
   const [offset, setOffset] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [easing, setEasing] = useState("cubic-bezier(0.25, 0.1, 0.1, 1)");
   const [betAmount, setBetAmount] = useState(0);
   const [balance, setBalance] = useState(10000);
   const [history, setHistory] = useState([]);
@@ -194,6 +203,7 @@ export default function RoulettePage() {
   const spinningRef = useRef(false);
   const socketRef = useRef(null);
   const spinTimeoutRef = useRef(null);
+  const spinEndCleanupRef = useRef(null);
   const serverRemainingRef = useRef(BETTING_DURATION_MS);
   const serverUpdatedAtRef = useRef(Date.now());
   const phaseRef = useRef("betting");
@@ -214,7 +224,7 @@ export default function RoulettePage() {
       }
       const dt = now - last;
       last = now;
-      idleOffsetRef.current -= (dt / 1000) * 30;
+      idleOffsetRef.current -= (dt / 1000) * 36;
       const patternWidth = itemWidthRef.current * REEL_PATTERN.length;
       if (patternWidth > 0 && idleOffsetRef.current <= -patternWidth) {
         idleOffsetRef.current += patternWidth;
@@ -318,7 +328,11 @@ export default function RoulettePage() {
       }
     };
 
-    const animateSpin = (colorId, requestedDuration = SPINNING_DURATION_MS) => {
+    const animateSpin = (
+      colorId,
+      requestedDuration = SPINNING_DURATION_MS,
+      winningTileIndex = null,
+    ) => {
       const color = COLORS.find((c) => c.id === colorId);
       if (!color) return;
       const spinDuration = Math.max(0, Math.min(SPINNING_DURATION_MS, requestedDuration));
@@ -334,23 +348,40 @@ export default function RoulettePage() {
 
       const currentCenterIndex = Math.round((containerWidth / 2 - currentOffset) / itemWidth);
       const patternLen = REEL_PATTERN.length;
-      let targetIndex = currentCenterIndex + 35;
-      for (let i = 0; i < patternLen * 2; i++) {
-        const idx = targetIndex + i;
-        const pIdx = ((idx % patternLen) + patternLen) % patternLen;
-        const prevIdx = ((idx - 1) % patternLen + patternLen) % patternLen;
-        const nextIdx = ((idx + 1) % patternLen + patternLen) % patternLen;
-        if (
-          REEL_PATTERN[pIdx].color === colorId &&
-          REEL_PATTERN[prevIdx].color !== colorId &&
-          REEL_PATTERN[nextIdx].color !== colorId
-        ) {
-          targetIndex = idx;
-          break;
+      const parsedWinningTileIndex = Number(winningTileIndex);
+      const hasWinningTileIndex = Number.isInteger(parsedWinningTileIndex)
+        && parsedWinningTileIndex >= 0
+        && parsedWinningTileIndex < patternLen;
+      const minimumTargetIndex = currentCenterIndex + 50;
+      let targetIndex;
+      if (hasWinningTileIndex) {
+        const slotsToWinningTile = (
+          (parsedWinningTileIndex - minimumTargetIndex) % patternLen + patternLen
+        ) % patternLen;
+        targetIndex = minimumTargetIndex + slotsToWinningTile;
+      } else {
+        targetIndex = minimumTargetIndex;
+        for (let i = 0; i < patternLen * 2; i++) {
+          const idx = targetIndex + i;
+          const pIdx = ((idx % patternLen) + patternLen) % patternLen;
+          if (REEL_PATTERN[pIdx].color === colorId) {
+            targetIndex = idx;
+            break;
+          }
         }
       }
 
-      const targetOffset = containerWidth / 2 - itemWidth * targetIndex - itemWidth / 2;
+      const targetItem = reelEl.querySelectorAll("[data-item]")[targetIndex];
+      const viewportRect = reelEl.parentElement?.getBoundingClientRect();
+      const targetRect = targetItem?.getBoundingClientRect();
+      const centeredOffset = viewportRect && targetRect
+        ? currentOffset
+          + viewportRect.left + viewportRect.width / 2
+          - targetRect.left - targetRect.width / 2
+        : containerWidth / 2 - itemWidth * targetIndex - itemWidth / 2;
+      const correctionDuration = Math.min(650, spinDuration);
+      const travelDuration = Math.max(0, spinDuration - correctionDuration);
+      const landingOffset = centeredOffset + (Math.random() * 98 - 49);
       spinningRef.current = true;
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
@@ -364,19 +395,65 @@ export default function RoulettePage() {
 
       void reelEl.offsetHeight;
 
-      reelEl.style.transition = `transform ${spinDuration}ms cubic-bezier(0.12, 0.66, 0.16, 1)`;
-      reelEl.style.transform = `translateX(${targetOffset}px)`;
-
-      setDuration(spinDuration);
-      setOffset(targetOffset);
-
       if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
-      spinTimeoutRef.current = setTimeout(() => {
+      if (spinEndCleanupRef.current) spinEndCleanupRef.current();
+
+      let spinCompleted = false;
+      const completeSpin = () => {
+        if (spinCompleted) return;
+        spinCompleted = true;
+        if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
+        spinTimeoutRef.current = null;
+        if (spinEndCleanupRef.current) spinEndCleanupRef.current();
+        spinEndCleanupRef.current = null;
+
+        reelEl.style.transition = "none";
+        reelEl.style.transform = `translateX(${centeredOffset}px)`;
+        idleOffsetRef.current = centeredOffset;
         setDuration(0);
-        setOffset(targetOffset);
+        setOffset(centeredOffset);
         setPhase("waiting");
         phaseRef.current = "waiting";
-      }, spinDuration);
+      };
+
+      let spinStage = "idle";
+      const beginCorrection = () => {
+        if (spinCompleted || spinStage === "correction") return;
+        if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
+        spinStage = "correction";
+        reelEl.style.transition = correctionDuration > 0
+          ? `transform ${correctionDuration}ms cubic-bezier(0.2, 0, 0.2, 1)`
+          : "none";
+        reelEl.style.transform = `translateX(${centeredOffset}px)`;
+        setEasing("cubic-bezier(0.2, 0, 0.2, 1)");
+        setDuration(correctionDuration);
+        setOffset(centeredOffset);
+        if (correctionDuration > 0) {
+          spinTimeoutRef.current = setTimeout(completeSpin, correctionDuration + 100);
+        } else {
+          completeSpin();
+        }
+      };
+
+      const handleTransitionEnd = (event) => {
+        if (event.target !== reelEl || event.propertyName !== "transform") return;
+        if (spinStage === "travel") beginCorrection();
+        else if (spinStage === "correction") completeSpin();
+      };
+      reelEl.addEventListener("transitionend", handleTransitionEnd);
+      spinEndCleanupRef.current = () => reelEl.removeEventListener("transitionend", handleTransitionEnd);
+
+      if (travelDuration > 0) {
+        spinStage = "travel";
+        reelEl.style.transition = `transform ${travelDuration}ms cubic-bezier(0.25, 0.1, 0.1, 1)`;
+        reelEl.style.transform = `translateX(${landingOffset}px)`;
+        setEasing("cubic-bezier(0.25, 0.1, 0.1, 1)");
+        setDuration(travelDuration);
+        setOffset(landingOffset);
+        spinTimeoutRef.current = setTimeout(beginCorrection, travelDuration + 100);
+      } else {
+        beginCorrection();
+      }
     };
 
     const handleMessage = (event) => {
@@ -408,7 +485,8 @@ export default function RoulettePage() {
             roundNumber: h.roundNumber ?? h.nonce,
             players: h.players ?? 0,
             color: COLORS.find((c) => c.id === h.color) || { id: h.color, ...COLORS.find((c) => c.id === h.color) },
-            icon: COLOR_ICON[h.color] || "clover",
+            tileIndex: h.tileIndex,
+            icon: iconForResult(h.color, h.tileIndex),
             time: new Date(h.time),
           })));
           if (payload.pots) setPots(payload.pots);
@@ -417,9 +495,9 @@ export default function RoulettePage() {
             setJackpotGreenStreak(Number(payload.jackpot.greenStreak || 0));
           }
           if (payload.result && payload.phase === "spinning") {
-            animateSpin(payload.result, nextRemaining);
+            animateSpin(payload.result, nextRemaining, payload.tileIndex);
           } else if (payload.result && payload.phase === "waiting") {
-            animateSpin(payload.result, 0);
+            animateSpin(payload.result, 0, payload.tileIndex);
           }
           break;
         }
@@ -447,6 +525,8 @@ export default function RoulettePage() {
           serverUpdatedAtRef.current = Date.now();
           if (nextPhase === "betting") {
             if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
+            if (spinEndCleanupRef.current) spinEndCleanupRef.current();
+            spinEndCleanupRef.current = null;
             spinningRef.current = false;
             setSpinning(false);
             setDuration(0);
@@ -471,7 +551,7 @@ export default function RoulettePage() {
             ?? (payload.endsAt ? Math.max(0, payload.endsAt - Date.now()) : SPINNING_DURATION_MS);
           serverRemainingRef.current = spinRemaining;
           serverUpdatedAtRef.current = Date.now();
-          animateSpin(payload.color, spinRemaining);
+          animateSpin(payload.color, spinRemaining, payload.tileIndex);
           break;
         }
         case "roulette_result": {
@@ -480,7 +560,8 @@ export default function RoulettePage() {
             roundNumber: h.roundNumber ?? h.nonce,
             players: h.players ?? 0,
             color: COLORS.find((c) => c.id === h.color) || { id: h.color },
-            icon: COLOR_ICON[h.color] || "clover",
+            tileIndex: h.tileIndex,
+            icon: iconForResult(h.color, h.tileIndex),
             time: new Date(h.time),
           })));
           if (payload.pots) setPots(payload.pots);
@@ -553,6 +634,8 @@ export default function RoulettePage() {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (miningBlockDisplayTimer) clearTimeout(miningBlockDisplayTimer);
       if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
+      if (spinEndCleanupRef.current) spinEndCleanupRef.current();
+      spinEndCleanupRef.current = null;
       const socket = socketRef.current;
       if (socket) socket.close();
       socketRef.current = null;
@@ -675,7 +758,7 @@ export default function RoulettePage() {
 
             {/* Reel */}
             <div ref={reelRef} className="w-full">
-              <RouletteReel reel={ROULETTE_REEL} offset={offset} spinning={spinning} duration={duration} />
+              <RouletteReel reel={ROULETTE_REEL} offset={offset} spinning={spinning} duration={duration} easing={easing} />
             </div>
 
             <div className="flex flex-col gap-2 px-4 sm:px-0">

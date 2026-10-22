@@ -16,7 +16,7 @@ export const ROULETTE_MULTIPLIERS = {
 };
 
 export const ROULETTE_BETTING_MS = 20 * 1000;
-export const ROULETTE_SPINNING_MS = 6 * 1000;
+export const ROULETTE_SPINNING_MS = 5 * 1000;
 export const ROULETTE_WAITING_MS = 2 * 1000;
 export const ROULETTE_TICK_MS = 250;
 export const EOS_BLOCKS_AHEAD = 4;
@@ -63,8 +63,8 @@ function sha256Hex(input) {
 async function computeResult(serverSeed, clientSeed, nonce, eosBlockId) {
   const hash = await hmacSha256Hex(serverSeed, `${clientSeed}:${nonce}:${eosBlockId}`);
   const value = parseInt(hash.slice(0, 8), 16);
-  const index = value % REEL_PATTERN.length;
-  return REEL_PATTERN[index];
+  const tileIndex = value % REEL_PATTERN.length;
+  return { color: REEL_PATTERN[tileIndex], tileIndex };
 }
 
 function eosSettings(env) {
@@ -218,7 +218,7 @@ function createSupabaseStore(env) {
       return rows[0].id;
     },
 
-    async completePendingRound(roundId, eosBlockId, result) {
+    async completePendingRound(roundId, eosBlockId, result, tileIndex) {
       const query = new URLSearchParams({ id: `eq.${roundId}`, select: "id" });
       const response = await request(`mm2wild_roulette_rounds?${query}`, {
         method: "PATCH",
@@ -231,6 +231,7 @@ function createSupabaseStore(env) {
           eos_block_status: "mined",
           eos_mined_at: new Date().toISOString(),
           result,
+          tile_index: tileIndex,
         }),
       });
       const rows = await response.json().catch(() => null);
@@ -291,7 +292,7 @@ function createSupabaseStore(env) {
 
     async loadRecentRounds(limit = 100) {
       const query = new URLSearchParams({
-        select: "id,nonce,result,total_players,created_at,eos_block_num,eos_block_id,eos_chain_id,eos_block_status,eos_requested_at,eos_mined_at",
+        select: "id,nonce,result,tile_index,total_players,created_at,eos_block_num,eos_block_id,eos_chain_id,eos_block_status,eos_requested_at,eos_mined_at",
         result: "not.is.null",
         order: "created_at.desc",
         limit: String(limit),
@@ -303,6 +304,7 @@ function createSupabaseStore(env) {
         id: row.id,
         roundNumber: row.nonce,
         color: row.result,
+        tileIndex: row.tile_index,
         players: row.total_players,
         time: row.created_at,
         eosBlockNum: row.eos_block_num,
@@ -440,10 +442,11 @@ function createMemoryStore() {
       if (rounds.length > 100) rounds.pop();
       return round.id;
     },
-    async completePendingRound(roundId, eosBlockId, result) {
+    async completePendingRound(roundId, eosBlockId, result, tileIndex) {
       const round = rounds.find((entry) => entry.id === roundId);
       if (!round) throw new Error("Pending roulette round was not found.");
       round.color = result;
+      round.tileIndex = tileIndex;
       round.eosBlockId = eosBlockId;
       round.eosBlockStatus = "mined";
       round.eosMinedAt = new Date().toISOString();
@@ -530,6 +533,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
   let phase = "betting";
   let phaseEndsAt = now() + ROULETTE_BETTING_MS;
   let currentResult = null;
+  let currentTileIndex = null;
   let currentRoundId = null;
   let currentEosBlockNum = null;
   let currentEosBlockId = null;
@@ -595,6 +599,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
             ? ROULETTE_WAITING_MS
             : 0,
       result: currentResult,
+      tileIndex: currentTileIndex,
       eosBlockNum: currentEosBlockNum,
       eosBlockId: currentEosBlockId,
       history: history.slice(0, 100),
@@ -650,6 +655,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
     phase = "betting";
     phaseEndsAt = now() + ROULETTE_BETTING_MS;
     currentResult = null;
+    currentTileIndex = null;
     currentRoundId = null;
     currentEosBlockNum = null;
     currentEosBlockId = null;
@@ -667,11 +673,11 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
     spinTimer = setTimeout(() => void mineEosBlock(), Math.max(0, phaseEndsAt - now()));
   }
 
-  async function startWaiting(result) {
+  async function startWaiting(result, tileIndex) {
     phase = "waiting";
     phaseEndsAt = now() + ROULETTE_WAITING_MS;
     broadcast({ type: "roulette_phase", phase: "waiting", endsAt: phaseEndsAt });
-    await resolveRound(result);
+    await resolveRound(result, tileIndex);
     const remaining = Math.max(0, phaseEndsAt - now());
     if (spinTimer) clearTimeout(spinTimer);
     spinTimer = setTimeout(startBetting, remaining);
@@ -769,7 +775,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
     if (phase !== "mining" || !block?.id) return;
 
     currentEosBlockId = block.id;
-    const result = await computeResult(
+    const outcome = await computeResult(
       seedRow.server_seed,
       seedRow.client_seed || "",
       roundNonce,
@@ -778,7 +784,12 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
 
     while (phase === "mining") {
       try {
-        await store.completePendingRound(currentRoundId, currentEosBlockId, result);
+        await store.completePendingRound(
+          currentRoundId,
+          currentEosBlockId,
+          outcome.color,
+          outcome.tileIndex,
+        );
         break;
       } catch {
         await wait(EOS_POLL_MS);
@@ -786,17 +797,19 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
     }
     if (phase !== "mining") return;
 
-    startSpin(result);
+    startSpin(outcome.color, outcome.tileIndex);
   }
 
-  function startSpin(result) {
+  function startSpin(result, tileIndex) {
     phase = "spinning";
     phaseEndsAt = now() + ROULETTE_SPINNING_MS;
     currentResult = result;
+    currentTileIndex = tileIndex;
 
     broadcast({
       type: "roulette_spin",
       color: result,
+      tileIndex,
       nonce: roundNonce,
       serverSeedHash: seedRow.server_seed_hash,
       clientSeed: seedRow.client_seed || "",
@@ -806,10 +819,10 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
     });
 
     if (spinTimer) clearTimeout(spinTimer);
-    spinTimer = setTimeout(() => void startWaiting(result), ROULETTE_SPINNING_MS);
+    spinTimer = setTimeout(() => void startWaiting(result, tileIndex), ROULETTE_SPINNING_MS);
   }
 
-  async function resolveRound(result) {
+  async function resolveRound(result, tileIndex) {
     const completedRoundNonce = roundNonce;
     let totalPot = 0;
     const playerSet = new Set();
@@ -830,6 +843,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
       id: roundId,
       roundNumber: completedRoundNonce,
       color: result,
+      tileIndex,
       players: playerSet.size,
       time: new Date().toISOString(),
       eosBlockNum: currentEosBlockNum,
@@ -903,6 +917,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
     broadcast({
       type: "roulette_result",
       color: result,
+      tileIndex,
       multiplier,
       history: history.slice(0, 100),
       pots: publicPots(),
@@ -1036,6 +1051,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
       phase = "betting";
       phaseEndsAt = now() + ROULETTE_BETTING_MS;
       currentResult = null;
+      currentTileIndex = null;
       currentRoundId = null;
       currentEosBlockNum = null;
       currentEosBlockId = null;

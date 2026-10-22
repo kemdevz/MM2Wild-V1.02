@@ -7,6 +7,7 @@ import {
   listCoinflipItems,
   listCoinflips,
 } from "./coinflip.js";
+import { getCase, listCases, openCase } from "./cases.js";
 
 const json = (body, status = 200, extraHeaders = {}) =>
   new Response(JSON.stringify(body), {
@@ -1185,6 +1186,39 @@ export default {
     }
     if (url.pathname === "/api/session" && request.method === "GET") {
       return getSession(request, env);
+    }
+    if (url.pathname === "/api/cases" && request.method === "GET") {
+      try {
+        return json({ cases: await listCases(env) });
+      } catch (error) {
+        return json({ error: error.message || "Could not load cases." }, 503);
+      }
+    }
+    const caseRoute = url.pathname.match(/^\/api\/cases\/([a-z0-9]+(?:-[a-z0-9]+)*)(\/open)?$/);
+    if (caseRoute && request.method === "GET" && !caseRoute[2]) {
+      try {
+        const caseItem = await getCase(env, caseRoute[1]);
+        return caseItem ? json({ case: caseItem }) : json({ error: "Case not found." }, 404);
+      } catch (error) {
+        return json({ error: error.message || "Could not load this case." }, 503);
+      }
+    }
+    if (caseRoute && request.method === "POST" && caseRoute[2]) {
+      const body = await request.json().catch(() => null);
+      const demo = body?.demo === true;
+      const sessionCookie = cookieValue(request, "mm2wild_session");
+      const user = demo ? null : await resolveSessionUser(sessionCookie, env);
+      if (!demo && !user) return missingSession(request);
+      try {
+        const opening = await openCase(env, user, caseRoute[1], body?.quantity, demo);
+        return json({ opening }, demo ? 200 : 201);
+      } catch (error) {
+        const message = error.message || "The case could not be opened.";
+        const status = /insufficient balance/i.test(message) ? 409
+          : /unavailable|not found/i.test(message) ? 404
+            : /choose|invalid/i.test(message) ? 400 : 503;
+        return json({ error: message }, status);
+      }
     }
     if (url.pathname === "/api/coinflip" && request.method === "GET") {
       try {

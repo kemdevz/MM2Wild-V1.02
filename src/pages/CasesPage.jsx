@@ -1,60 +1,4 @@
-import { useMemo, useState } from "react";
-
-const CASES = [
-  ["royal-reserve", "Royal Reserve", 21008, 1, 63.5],
-  ["royal-relic", "Royal Relic", 14467, 1, 65.8],
-  ["liberty-lockbox", "Liberty Lockbox", 10050, 2, 70.4],
-  ["chroma-jackpot", "Chroma Jackpot", 7119, 1, 66.1],
-  ["bay-harbor-butcher", "Bay Harbor Butcher", 5895, 2, 75.6],
-  ["voodoo", "Voodoo", 4704, 1, 45.9],
-  ["pharaoh", "Pharaoh", 4114, 1, 49.8],
-  ["desert-dominion", "Desert Dominion", 3978, 1, 52],
-  ["solar-fury", "Solar Fury", 3855, 1, 50],
-  ["cosmic-cradle", "Cosmic Cradle", 3701, 1, 50.2],
-  ["comp-mode", "Comp Mode", 3500, 1, 49.3],
-  ["sandy-shores", "Sandy Shores", 3233, 2, 70],
-  ["hollow-bounty", "Hollow Bounty", 3040, 1, 37.2],
-  ["venom-strike", "Venom Strike", 2707, 1, 47.6],
-  ["royal-bloodshed", "Royal Bloodshed", 2604, 1, 52.2],
-  ["travelers-curse", "Traveler's Curse", 2500, 1, 57.6, "travellers-curse"],
-  ["storm-chaser", "Storm Chaser", 2401, 1, 53.3],
-  ["cosmic-vault", "Cosmic Vault", 2277, 1, 45],
-  ["love-loot", "Love Loot", 2026, 1, 56.8],
-  ["icebound-riches", "Icebound Riches", 1908, 1, 52.7],
-  ["orbit-vault", "Orbit Vault", 1809, 1, 52.2],
-  ["rip-my-granny", "RIP My Granny", 1709, 1, 45.4],
-  ["evil-craft", "Evil Craft", 1615, 1, 48],
-  ["metro-fortune", "Metro Fortune", 1517, 1, 64.1],
-  ["cookie-fortress", "Cookie Fortress", 1402, 1, 60.2],
-  ["lucky-tune", "Lucky Tune", 1314, 1, 66.1, "luckytune"],
-  ["spectral-depths", "Spectral Depths", 1212, 1, 61.5],
-  ["phantom-pantry", "Phantom Pantry", 1111, 1, 63.4],
-  ["concrete-chaos", "Concrete Chaos", 1040, 2, 76.8],
-  ["cherry-blossom", "Cherry Blossom", 948, 2, 67.9],
-  ["sunset-paradise", "Sunset Paradise", 828, 1, 58.3],
-  ["alien-anomaly", "Alien Anomaly", 785, 1, 49.7],
-  ["ishowwild", "IShowWild", 777, 1, 59],
-  ["winter-wonderland", "Winter Wonderland", 686, 1, 65.3],
-  ["verges-curse", "Verge's Curse", 666, 1, 44.1],
-  ["jails-last-wish", "Jail's Last Wish", 512, 1, 64.9, "jailslastwish"],
-  ["e-girl-energy", "E-Girl Energy", 468, 1, 43.2],
-  ["cloud-nine", "Cloud Nine", 355, 2, 79.3],
-  ["vampires-lair", "Vampire's Lair", 313, 1, 52],
-  ["toxic-hazard", "Toxic Hazard", 280, 1, 33.6],
-  ["red-front", "Red Front", 258, 1, 43.2],
-  ["turkey-day", "Turkey Day", 255, 1, 51.6],
-  ["shadow-realm", "Shadow Realm", 245, 1, 49.8],
-  ["sugar-rush", "Sugar Rush", 128, 1, 61.3],
-  ["elderwood-roots", "Elderwood Roots", 121, 1, 36.9],
-  ["oceans-depths", "Ocean's Depths", 93, 1, 52.5],
-  ["noobs-luck", "Noob's Luck", 82, 1, 49.3],
-  ["10-icepiercer", "10% Icepiercer", 69, 2, 67.7],
-  ["67", "67", 67, 1, 55.8],
-  ["burning-chaos", "Burning Chaos", 50, 1, 43.1],
-  ["neon-strike", "Neon Strike", 47, 2, 75.6],
-  ["luger-vault", "Luger Vault", 39, 1, 36.9],
-  ["seers-vision", "Seer's Vision", 11, 1, 54, "seersvision"],
-].map(([slug, name, price, risk, marker, asset = slug]) => ({ slug, name, price, risk, marker, asset }));
+import { useEffect, useMemo, useState } from "react";
 
 const SORTS = [
   { id: "highest", label: "Highest Price" },
@@ -87,8 +31,8 @@ function CaseCard({ caseItem }) {
       <img src="/leafs.png" alt="Blades" className="object-contain size-[145%] absolute left-1/2 -translate-x-7/12 -top-[14%] pointer-events-none max-w-none select-none" />
       <div className="h-full mx-auto aspect-square relative">
         <div className="absolute -translate-1/2 left-1/2 top-1/2 size-43 mt-3">
-          <img src={`/cases/${caseItem.asset}.webp`} alt={caseItem.name} className="absolute inset-0 size-full object-contain opacity-0 transition-opacity duration-300 group-hover/case:opacity-90! blur-[32px] no-interaction" style={{ opacity: 0.6 }} />
-          <img src={`/cases/${caseItem.asset}.webp`} alt={caseItem.name} className="absolute inset-0 size-full object-contain opacity-0 transition-opacity duration-300 drop-shadow-[0_12px_10px_rgba(0,0,0,0.3)] no-interaction" style={{ opacity: 1 }} />
+          <img src={caseItem.imageUrl} alt={caseItem.name} className="absolute inset-0 size-full object-contain opacity-0 transition-opacity duration-300 group-hover/case:opacity-90! blur-[32px] no-interaction" style={{ opacity: 0.6 }} />
+          <img src={caseItem.imageUrl} alt={caseItem.name} className="absolute inset-0 size-full object-contain opacity-0 transition-opacity duration-300 drop-shadow-[0_12px_10px_rgba(0,0,0,0.3)] no-interaction" style={{ opacity: 1 }} />
         </div>
       </div>
       <div className="flex flex-col items-center gap-3.5">
@@ -112,20 +56,41 @@ function CaseCard({ caseItem }) {
 }
 
 export default function CasesPage() {
+  const [cases, setCases] = useState([]);
+  const [loadError, setLoadError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("highest");
   const [sortOpen, setSortOpen] = useState(false);
 
+  useEffect(() => {
+    document.title = "Cases :: MM2Wild";
+    const controller = new AbortController();
+    fetch("/api/cases", { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error || "Could not load cases.");
+        setCases(Array.isArray(payload?.cases) ? payload.cases : []);
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") setLoadError(error.message || "Could not load cases.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
   const visibleCases = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase();
     const filtered = normalizedSearch
-      ? CASES.filter((caseItem) => caseItem.name.toLocaleLowerCase().includes(normalizedSearch))
-      : [...CASES];
+      ? cases.filter((caseItem) => caseItem.name.toLocaleLowerCase().includes(normalizedSearch))
+      : [...cases];
     if (sort === "lowest") return filtered.sort((a, b) => a.price - b.price);
     if (sort === "highest-risk") return filtered.sort((a, b) => b.risk - a.risk);
     if (sort === "lowest-risk") return filtered.sort((a, b) => a.risk - b.risk);
     return filtered.sort((a, b) => b.price - a.price);
-  }, [search, sort]);
+  }, [cases, search, sort]);
 
   const selectedSort = SORTS.find((option) => option.id === sort) || SORTS[0];
 
@@ -195,9 +160,15 @@ export default function CasesPage() {
             </div>
           </div>
           <div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
-              {visibleCases.map((caseItem) => <CaseCard key={caseItem.slug} caseItem={caseItem} />)}
-            </div>
+            {loadError ? (
+              <div className="rounded-xl bg-[#202D57] px-5 py-8 text-center text-accent font-medium">{loadError}</div>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+                {isLoading
+                  ? Array.from({ length: 12 }, (_, index) => <div key={index} className="h-60 rounded-xl bg-[#202D57] animate-pulse" />)
+                  : visibleCases.map((caseItem) => <CaseCard key={caseItem.slug} caseItem={caseItem} />)}
+              </div>
+            )}
             <div className="flex justify-center items-center" />
           </div>
         </div>

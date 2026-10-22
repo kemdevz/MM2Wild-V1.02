@@ -14,6 +14,7 @@ import NotificationCenter from "./components/NotificationCenter";
 import RoulettePage from "./pages/RoulettePage";
 import CoinflipPage from "./pages/CoinflipPage";
 import CasesPage from "./pages/CasesPage";
+import CaseOpen from "./pages/CaseOpen";
 import PlinkoPage from "./pages/PlinkoPage";
 import LineWobbleLoader from "./components/LineWobbleLoader";
 
@@ -145,6 +146,7 @@ export default function App() {
   const isRoulettePage = pathname === "/games/roulette";
   const isCoinflipPage = pathname === "/games/coinflip";
   const isCasesPage = pathname === "/games/cases";
+  const caseOpenMatch = pathname.match(/^\/games\/cases\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/);
   const isPlinkoPage = pathname === "/games/plinko";
 
   return (
@@ -180,6 +182,8 @@ export default function App() {
             <CoinflipPage />
           ) : isCasesPage ? (
             <CasesPage />
+          ) : caseOpenMatch ? (
+            <CaseOpen slug={caseOpenMatch[1]} />
           ) : isPlinkoPage ? (
             <PlinkoPage selectedBalanceType={selectedBalanceType} />
           ) : (
