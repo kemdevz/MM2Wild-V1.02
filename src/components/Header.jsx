@@ -423,7 +423,7 @@ function CurrencyDropdown({
 
 function SignedInHeaderControls({ user, onLogout, selectedCurrency, onSelectCurrency }) {
   const mm2Balance = Number(user.mm2_balance || 0).toLocaleString("en-US", {
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 0,
   });
   const cryptoBalance = Number(user.crypto_balance || 0).toLocaleString(
     "en-US",

@@ -2,10 +2,12 @@ import { createRainState, createSupabaseRainStore, formatRainState } from "./rai
 import { createRouletteState } from "./roulette.js";
 import { transferUserTip } from "./tips.js";
 import {
+  callCoinflipBot,
   createCoinflip,
   joinCoinflip,
   listCoinflipItems,
   listCoinflips,
+  proxyCoinflipItemImage,
 } from "./coinflip.js";
 import { getCase, listCases, openCase } from "./cases.js";
 
@@ -487,10 +489,14 @@ async function sendUserTip(request, env) {
   if (!/^[A-Za-z0-9_]{3,20}$/.test(recipientUsername)) {
     return json({ error: "Enter a valid username." }, 400);
   }
-  const decimalPlaces = balanceType === "crypto" ? 8 : 2;
-  const amountPattern = new RegExp(`^\\d+(?:\\.\\d{1,${decimalPlaces}})?$`);
+  const decimalPlaces = balanceType === "crypto" ? 8 : 0;
+  const amountPattern = decimalPlaces > 0
+    ? new RegExp(`^\\d+(?:\\.\\d{1,${decimalPlaces}})?$`)
+    : /^\d+$/;
   if (!amountPattern.test(amountText) || Number(amountText) <= 0) {
-    return json({ error: `Enter a valid amount with no more than ${decimalPlaces} decimal places.` }, 400);
+    return json({ error: balanceType === "crypto"
+      ? "Enter a valid amount with no more than 8 decimal places."
+      : "Enter a whole-number MM2 amount." }, 400);
   }
 
   try {
@@ -507,7 +513,7 @@ async function sendUserTip(request, env) {
         sender: sender.username,
         recipient: tip.recipient_username,
         amount: Number(tip.amount).toLocaleString("en-US", {
-          maximumFractionDigits: tip.balance_type === "crypto" ? 8 : 2,
+          maximumFractionDigits: tip.balance_type === "crypto" ? 8 : 0,
         }),
         balanceType: tip.balance_type,
       };
@@ -803,12 +809,16 @@ async function coinflipRequest(request, env) {
     const action = String(body?.action || "");
     const game = action === "join"
       ? await joinCoinflip(env, user, body?.gameId, body?.itemIds)
-      : await createCoinflip(env, user, body?.itemIds, body?.side);
+      : action === "callBot"
+        ? await callCoinflipBot(env, user, body?.gameId)
+        : action === "create"
+          ? await createCoinflip(env, user, body?.itemIds, body?.side)
+          : (() => { throw new Error("Invalid coinflip action."); })();
     const refreshedUser = await resolveSessionUser(sessionCookie, env);
-    return json({ game, balance: Number(refreshedUser?.mm2_balance || 0) }, action === "join" ? 200 : 201);
+    return json({ game, balance: Number(refreshedUser?.mm2_balance || 0) }, action === "create" ? 201 : 200);
   } catch (error) {
     const message = error.message || "The coinflip could not be updated.";
-    const status = /invalid|select|choose|outside|own coinflip/i.test(message) ? 400
+    const status = /invalid|select|choose|outside|own coinflip|only the creator|between|maximum/i.test(message) ? 400
       : /no longer open|not found/i.test(message) ? 409
       : /insufficient/i.test(message) ? 409
       : 503;
@@ -1233,6 +1243,9 @@ export default {
       } catch (error) {
         return json({ error: error.message || "Could not load items." }, 503);
       }
+    }
+    if (url.pathname === "/api/coinflip/item-image" && request.method === "GET") {
+      return proxyCoinflipItemImage(env, url.searchParams.get("url"));
     }
     if (url.pathname === "/api/coinflip" && request.method === "POST") {
       return coinflipRequest(request, env);

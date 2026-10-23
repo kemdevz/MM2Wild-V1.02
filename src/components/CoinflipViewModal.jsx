@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+  COINFLIP_COUNTDOWN_MS,
+  coinflipAnimationAsset,
+} from "../utils/coinflipAnimation";
 
 const coinIconPath =
   "M256 136c88.4 0 160 28.7 160 64s-71.6 64-160 64-160-28.7-160-64 71.6-64 160-64Zm0 216C114.6 352 0 287.5 0 208S114.6 64 256 64s256 64.5 256 144-114.6 144-256 144Zm-125.9-77.9c34.5 14.3 78.7 21.9 125 21.9 48.1 0 92.3-7.6 125.9-21.9 16.7-5.8 32.4-14.6 44.4-25.9 12.1-11.5 22.6-27.7 22.6-48.2 0-20.5-10.5-36.7-22.6-48.2-12-11.3-27.7-20.1-44.4-26.8-33.6-13.4-77.8-21-125.9-21-46.3 0-90.5 7.6-125 21-15.8 6.7-31.5 15.5-43.51 26.8C74.5 163.3 63.1 179.5 63.1 200c0 20.5 11.4 36.7 23.49 48.2 12.01 11.3 27.71 20.1 43.51 25.9ZM0 290.1c13.21 15.7 29.72 29.4 48 40v64.5c-30.21-21-48-46.7-48-74.6v-29.9Zm80 122v-63.8c28.4 13.1 60.9 23 96 29v64.3c-36.2-5.9-68.9-15.8-96-29.5Zm128-30.5c15.7 1.6 31.7 2.4 48 2.4s32.3-.8 48-2.4v64.2c-15.5 1.4-31.6 2.2-48 2.2s-32.5-.8-48-2.2v-64.2Zm128 60v-64.3c35.1-6 67.6-15.9 96-29v63.8c-27.1 13.7-59.8 23.6-96 29.5Zm128-111.5c18.3-10.6 34.8-24.3 48-40V320c0 27.9-17.8 53.6-48 74.6v-64.5Z";
 
-function Player({ bot, name, coin, side, faded = false, level }) {
+function Player({ bot, name, coin, side, outcome = null, faded = false, level }) {
   const isLeft = side === "left";
+  const outcomeColor = outcome === "winner"
+    ? "to-[#5CDF9A]"
+    : outcome === "loser"
+      ? "to-[#DF5C5C]"
+      : "to-[#283667]";
   return (
     <div className="flex-1 relative flex flex-col sm:items-center gap-4">
       <div
@@ -15,9 +24,7 @@ function Player({ bot, name, coin, side, faded = false, level }) {
       >
         <div className="size-18 sm:size-30 relative" style={{ cursor: faded ? "pointer" : undefined }}>
           <div
-            className={`size-full rounded-[22px] sm:rounded-4xl from-[#283667]/0 transition-colors duration-1000 ${
-              isLeft ? "to-[#DF5C5C]" : "to-[#5CDF9A]"
-            } flex flex-col items-center relative bg-linear-to-b from-5% p-0.5`}
+            className={`size-full rounded-[22px] sm:rounded-4xl from-[#283667]/0 transition-colors duration-1000 ${outcomeColor} flex flex-col items-center relative bg-linear-to-b from-5% p-0.5`}
             style={{
               "--level-border-start": "#222a3f",
               "--level-border-end": "#BEBEBE",
@@ -217,7 +224,7 @@ function IdleItemCard({ item }) {
   );
 }
 
-function IdleModalContent({ onClose, orange, game, onJoin, actionLabel, canJoin }) {
+function IdleModalContent({ onClose, orange, game, onJoin, onCallBot, actionLabel, canJoin, isCreator, actionBusy, actionError }) {
   const [isFairnessOpen, setIsFairnessOpen] = useState(false);
   const playerCoin = orange ? "heads" : "tails";
   const waitingCoin = orange ? "tails" : "heads";
@@ -278,7 +285,7 @@ function IdleModalContent({ onClose, orange, game, onJoin, actionLabel, canJoin 
                 }}
               >
                 <div className="flex flex-col items-center justify-center">
-                  <button type="button" disabled={!canJoin} onClick={onJoin} className="relative cursor-pointer outline-none flex select-none transition-opacity disabled:opacity-40 disabled:pointer-events-none group/button h-10.5 sm:h-11.5 w-full">
+                  <button type="button" disabled={actionBusy || (!isCreator && !canJoin)} onClick={isCreator ? onCallBot : onJoin} className="relative cursor-pointer outline-none flex select-none transition-opacity disabled:opacity-40 disabled:pointer-events-none group/button h-10.5 sm:h-11.5 w-full">
                     <div
                       className="absolute left-0 right-0 bottom-0 rounded-lg pointer-events-none"
                       style={{ top: "var(--sb-shadow-size,3px)", backgroundColor: `rgb(${joinShadow})` }}
@@ -287,9 +294,10 @@ function IdleModalContent({ onClose, orange, game, onJoin, actionLabel, canJoin 
                       className="rounded-lg size-full flex items-center relative transition-transform duration-125 will-change-transform group-hover/button:-translate-y-0.5 group-active/button:translate-y-0 text-sm sm:text-base px-4.5 font-bold"
                       style={{ height: "calc(100% - var(--sb-shadow-size,3px))", backgroundColor: `rgb(${joinColor})`, color: "rgb(255, 255, 255)" }}
                     >
-                      <div className="transition-opacity flex items-center justify-center size-full" style={{ filter: `drop-shadow(rgb(${joinShadow}) 0px 2px 0px)` }}>{actionLabel}</div>
+                      <div className="transition-opacity flex items-center justify-center size-full" style={{ filter: `drop-shadow(rgb(${joinShadow}) 0px 2px 0px)` }}>{actionBusy ? "CALLING BOT..." : actionLabel}</div>
                     </div>
                   </button>
+                  {actionError ? <p className="mt-2 text-center text-xs font-semibold text-[#FF9EAE]">{actionError}</p> : null}
                 </div>
               </div>
             </div>
@@ -339,10 +347,34 @@ function IdleModalContent({ onClose, orange, game, onJoin, actionLabel, canJoin 
   );
 }
 
-function ModalContent({ onClose, game }) {
+function ModalContent({ onClose, game, animation }) {
   const [isFairnessOpen, setIsFairnessOpen] = useState(false);
-  const creatorWon = game.winnerUuid === game.creator.uuid;
-  const joinerWon = game.winnerUuid === game.joiner?.uuid;
+  const [countdown, setCountdown] = useState(3);
+  const [countdownProgress, setCountdownProgress] = useState(1);
+  const [hasFlipped, setHasFlipped] = useState(false);
+  const animationActive = Boolean(animation && animation.phase !== "settled");
+  const revealed = !animationActive;
+  const creatorWon = game.winnerSide === game.creator.side;
+  const joinerWon = !creatorWon;
+  const flipAsset = coinflipAnimationAsset(game);
+
+  useEffect(() => {
+    if (animation?.phase !== "countdown") return undefined;
+    let frame;
+    const update = () => {
+      const remaining = COINFLIP_COUNTDOWN_MS - (Date.now() - animation.startedAt);
+      setCountdown(Math.max(1, Math.ceil(remaining / 1000)));
+      setCountdownProgress(Math.max(0, Math.min(1, remaining / COINFLIP_COUNTDOWN_MS)));
+      if (remaining > 0) frame = window.requestAnimationFrame(update);
+    };
+    update();
+    return () => window.cancelAnimationFrame(frame);
+  }, [animation?.phase, animation?.startedAt]);
+
+  useEffect(() => {
+    if (animation?.phase === "flipping") setHasFlipped(true);
+  }, [animation?.phase]);
+
   return (
     <div className="max-h-[calc(100dvh-48px)] overflow-y-auto relative rounded-2xl bg-[#192243] [&amp;::-webkit-scrollbar]:w-1 [&amp;::-webkit-scrollbar-track]:bg-transparent [&amp;::-webkit-scrollbar-thumb]:bg-primary [&amp;::-webkit-scrollbar-thumb]:rounded-full [&amp;::-webkit-scrollbar-thumb:hover]:bg-primary/80">
       <h2 id="coinflip-view-title" className="sr-only">Coinflip #{game.number}</h2>
@@ -359,25 +391,59 @@ function ModalContent({ onClose, game }) {
         <div className="flex items-center justify-center pt-14 pb-10 relative w-full px-6">
           <div className="flex flex-col gap-5 items-center z-1 absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2">
             <div className="size-22 sm:size-40 bg-[#141A32]/40 rounded-full flex items-center justify-center relative mb-10 sm:mb-0">
-              <div className="size-[88%] relative">
-                <video src={`/coinflip/${game.creator.side[0]}2${game.winnerSide[0]}.webm`} poster={`/coinflip/${game.winnerSide}.webp`} className="size-full object-cover pointer-events-none" autoPlay muted playsInline />
-              </div>
+              {animation?.phase === "countdown" ? (
+                <div className="relative size-[85%] bg-[#1B1E36] rounded-full flex items-center justify-center">
+                  <svg className="absolute -rotate-90 size-[calc(100%+10px)]" viewBox="0 0 100 100" aria-hidden="true">
+                    <circle cx="50" cy="50" r="48" fill="none" stroke="#1475E1" strokeWidth="2" strokeDasharray="301.59" strokeDashoffset={301.59 * (1 - countdownProgress)} />
+                  </svg>
+                  <span className="text-4xl sm:text-6xl font-bold text-white z-10">{countdown}</span>
+                </div>
+              ) : (animation?.phase === "flipping" || (animation?.phase === "settled" && hasFlipped)) && flipAsset ? (
+                <div className="size-[141%] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <video
+                    key={`${game.id}-${animation.startedAt}`}
+                    src={`/coinflip/${flipAsset}.webm`}
+                    className="size-full object-contain pointer-events-none"
+                    autoPlay
+                    muted
+                    playsInline
+                  />
+                </div>
+              ) : (
+                <div className="size-[88%] relative">
+                  <img src={`/coinflip/${game.winnerSide}.webp`} alt={game.winnerSide} className="size-full object-cover pointer-events-none" loading="eager" />
+                </div>
+              )}
             </div>
           </div>
-          <Player bot={game.creator.avatar} name={game.creator.username} coin={game.creator.side} side="left" faded={!creatorWon} />
-          <Player bot={game.joiner.avatar} name={game.joiner.username} coin={game.joiner.side} side="right" faded={!joinerWon} />
+          <Player
+            bot={game.creator.avatar}
+            name={game.creator.username}
+            coin={game.creator.side}
+            side="left"
+            outcome={revealed ? (creatorWon ? "winner" : "loser") : null}
+            faded={revealed && !creatorWon}
+          />
+          <Player
+            bot={game.joiner.avatar}
+            name={game.joiner.username}
+            coin={game.joiner.side}
+            side="right"
+            outcome={revealed ? (joinerWon ? "winner" : "loser") : null}
+            faded={revealed && !joinerWon}
+          />
         </div>
 
         <div className="relative px-6 flex flex-col gap-4">
           <div className="flex items-start gap-8 justify-center">
-            <ValuePanel faded={!creatorWon} player={game.creator} />
-            <ValuePanel blue faded={!joinerWon} player={game.joiner} />
+            <ValuePanel faded={revealed && !creatorWon} player={game.creator} />
+            <ValuePanel blue faded={revealed && !joinerWon} player={game.joiner} />
           </div>
           <div className="flex items-start gap-8 justify-center h-64 overflow-y-auto scrollbar-hide pb-6">
-            <div className="transition-opacity duration-300 opacity-55 flex-1 max-w-md">
+            <div className={`transition-opacity duration-300 flex-1 max-w-md ${revealed && !creatorWon ? "opacity-55" : ""}`}>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">{game.creator.items.map((item) => <ItemCard key={item.id} item={item} />)}</div>
             </div>
-            <div className="transition-opacity duration-300 flex-1 max-w-md">
+            <div className={`transition-opacity duration-300 flex-1 max-w-md ${revealed && !joinerWon ? "opacity-55" : ""}`}>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">{game.joiner.items.map((item) => <ItemCard key={item.id} item={item} />)}</div>
             </div>
           </div>
@@ -414,7 +480,8 @@ function ModalContent({ onClose, game }) {
           <div className="space-y-1 pt-4 text-accent font-semibold text-sm">
             <p className="truncate">HASHED SEED: <span className="text-accent/70">{game.fairness.hashedSeed}</span></p>
             <p className="truncate">SERVER SEED: <span className="text-accent/70">{game.fairness.serverSeed}</span></p>
-            <p className="truncate">RESULT HASH: <span className="text-accent/70">{game.fairness.resultHash}</span></p>
+            <p className="truncate">EOS BLOCK: <span className="text-accent/70">{game.fairness.eosBlock ?? "Unavailable"}</span></p>
+            <p className="truncate">EOS HASH: <span className="text-accent/70">{game.fairness.eosHash || "Unavailable"}</span></p>
           </div>
         </div>
       </div>
@@ -422,7 +489,7 @@ function ModalContent({ onClose, game }) {
   );
 }
 
-export default function CoinflipViewModal({ onClose, onJoin, actionLabel = "JOIN", canJoin = true, game, idle = false, orange = false }) {
+export default function CoinflipViewModal({ onClose, onJoin, onCallBot, actionLabel = "JOIN", canJoin = true, isCreator = false, actionBusy = false, actionError = "", game, idle = false, orange = false, animation = null }) {
   const [isOpen, setIsOpen] = useState(true);
   const closeTimerRef = useRef(null);
   const isClosingRef = useRef(false);
@@ -499,9 +566,9 @@ export default function CoinflipViewModal({ onClose, onJoin, actionLabel = "JOIN
         }}
       >
         {idle ? (
-          <IdleModalContent onClose={requestClose} onJoin={onJoin} actionLabel={actionLabel} canJoin={canJoin} orange={orange} game={game} />
+          <IdleModalContent onClose={requestClose} onJoin={onJoin} onCallBot={onCallBot} actionLabel={actionLabel} canJoin={canJoin} isCreator={isCreator} actionBusy={actionBusy} actionError={actionError} orange={orange} game={game} />
         ) : (
-          <ModalContent onClose={requestClose} game={game} />
+          <ModalContent onClose={requestClose} game={game} animation={animation} />
         )}
       </div>
     </>,

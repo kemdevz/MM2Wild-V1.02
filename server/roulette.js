@@ -277,15 +277,15 @@ function createSupabaseStore(env) {
         throw new Error(result?.message || "Could not process the roulette jackpot.");
       }
       return {
-        amount: Number(result.amount || 0),
+        amount: Math.round(Number(result.amount || 0)),
         greenStreak: Number(result.greenStreak || 0),
         triggered: Boolean(result.triggered),
-        potAmount: Number(result.potAmount || 0),
-        paidAmount: Number(result.paidAmount || 0),
+        potAmount: Math.round(Number(result.potAmount || 0)),
+        paidAmount: Math.round(Number(result.paidAmount || 0)),
         payouts: Array.isArray(result.payouts) ? result.payouts.map((payout) => ({
           userUuid: payout.userUuid,
           roundId: payout.roundId,
-          payout: Number(payout.payout || 0),
+          payout: Math.round(Number(payout.payout || 0)),
         })) : [],
       };
     },
@@ -458,8 +458,8 @@ function createMemoryStore() {
       const processed = processedJackpotRounds.get(round.roundId);
       if (processed) return processed;
 
-      const contribution = Math.round((round.totalPot * 0.005 + Number.EPSILON) * 100) / 100;
-      jackpotAmount = Math.round((jackpotAmount + contribution + Number.EPSILON) * 100) / 100;
+      const contribution = Math.round(round.totalPot * 0.005);
+      jackpotAmount = Math.round(jackpotAmount + contribution);
       if (round.result === "green") {
         jackpotGreenRounds.push({ roundId: round.roundId, bets: round.greenBets });
       } else {
@@ -483,7 +483,7 @@ function createMemoryStore() {
           const roundTotal = greenRound.bets.reduce((sum, bet) => sum + bet.amount, 0);
           if (roundTotal <= 0) continue;
           for (const bet of greenRound.bets) {
-            const payout = Math.floor((third * (bet.amount / roundTotal) + Number.EPSILON) * 100) / 100;
+            const payout = Math.floor(third * (bet.amount / roundTotal) + Number.EPSILON);
             if (payout <= 0) continue;
             const current = balances.get(bet.userUuid) ?? 10000;
             balances.set(bet.userUuid, current + payout);
@@ -491,8 +491,8 @@ function createMemoryStore() {
             result.payouts.push({ userUuid: bet.userUuid, roundId: greenRound.roundId, payout });
           }
         }
-        result.paidAmount = Math.round((result.paidAmount + Number.EPSILON) * 100) / 100;
-        jackpotAmount = Math.max(0, Math.round((jackpotAmount - result.paidAmount + Number.EPSILON) * 100) / 100);
+        result.paidAmount = Math.round(result.paidAmount);
+        jackpotAmount = Math.max(0, Math.round(jackpotAmount - result.paidAmount));
         jackpotGreenRounds = [];
         result.amount = jackpotAmount;
         result.greenStreak = 0;
@@ -577,9 +577,9 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
   function publicJackpot() {
     const pendingContribution = jackpotContributionSettled
       ? 0
-      : Math.round(roundTotals().totalPot * 0.5) / 100;
+      : Math.round(roundTotals().totalPot * 0.005);
     return {
-      amount: Math.round((jackpotAmount + pendingContribution + Number.EPSILON) * 100) / 100,
+      amount: Math.round(jackpotAmount + pendingContribution),
       greenStreak: jackpotGreenStreak,
     };
   }

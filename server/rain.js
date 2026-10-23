@@ -167,9 +167,9 @@ export function createRainState({ store = null, now = () => Date.now() } = {}) {
 
   function localSettlement() {
     const participantIds = [...rain.participantIds];
-    const totalCents = Math.max(0, Math.round(rain.pool * 100));
-    const baseCents = participantIds.length ? Math.floor(totalCents / participantIds.length) : 0;
-    const extraCents = participantIds.length ? totalCents % participantIds.length : 0;
+    const totalUnits = Math.max(0, Math.round(rain.pool));
+    const baseUnits = participantIds.length ? Math.floor(totalUnits / participantIds.length) : 0;
+    const extraUnits = participantIds.length ? totalUnits % participantIds.length : 0;
     return {
       rainId: rain.id,
       pool: rain.pool,
@@ -177,7 +177,7 @@ export function createRainState({ store = null, now = () => Date.now() } = {}) {
       payouts: participantIds.map((userUuid, index) => ({
         userUuid,
         ...(rain.participantProfiles.get(userUuid) || {}),
-        payout: (baseCents + (index < extraCents ? 1 : 0)) / 100,
+        payout: baseUnits + (index < extraUnits ? 1 : 0),
       })),
     };
   }

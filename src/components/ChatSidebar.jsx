@@ -573,10 +573,10 @@ function TipRainModal({ onClose, onSubmit }) {
                   id="tip-rain-amount"
                   type="text"
                   value={amount}
-                  onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}
+                  onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ""))}
                   placeholder="Enter amount..."
                   className="bg-transparent outline-none size-full font-medium peer text-[15px] placeholder:text-accent pl-2"
-                  inputMode="decimal"
+                  inputMode="numeric"
                 />
               </div>
             </div>
@@ -613,15 +613,19 @@ function TipUserModal({ initialUsername, balanceType, onClose }) {
     if (submitting) return;
     const nextErrors = {};
     const trimmedUsername = username.trim();
-    const decimalPlaces = balanceType === "crypto" ? 8 : 2;
-    const amountPattern = new RegExp(`^\\d+(?:\\.\\d{1,${decimalPlaces}})?$`);
+    const decimalPlaces = balanceType === "crypto" ? 8 : 0;
+    const amountPattern = decimalPlaces > 0
+      ? new RegExp(`^\\d+(?:\\.\\d{1,${decimalPlaces}})?$`)
+      : /^\d+$/;
     if (!trimmedUsername) nextErrors.username = "Username is required.";
     else if (!/^[A-Za-z0-9_]{3,20}$/.test(trimmedUsername)) {
       nextErrors.username = "Enter a valid username.";
     }
     if (!amount) nextErrors.amount = "Amount is required.";
     else if (!amountPattern.test(amount) || Number(amount) <= 0) {
-      nextErrors.amount = `Enter a valid amount with no more than ${decimalPlaces} decimal places.`;
+      nextErrors.amount = balanceType === "crypto"
+        ? "Enter a valid amount with no more than 8 decimal places."
+        : "Enter a whole-number MM2 amount.";
     }
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
@@ -649,7 +653,7 @@ function TipUserModal({ initialUsername, balanceType, onClose }) {
         type: "success",
         title: "Tip Sent!",
         message: `You sent ${Number(payload.tip?.amount || amount).toLocaleString("en-US", {
-          maximumFractionDigits: balanceType === "crypto" ? 8 : 2,
+          maximumFractionDigits: balanceType === "crypto" ? 8 : 0,
         })} ${balanceType === "crypto" ? "crypto" : "MM2"} coins to ${payload.tip?.recipient_username || username}.`,
         duration: 5000,
       });
@@ -746,12 +750,12 @@ function TipUserModal({ initialUsername, balanceType, onClose }) {
                   type="text"
                   value={amount}
                   onChange={(event) => {
-                    setAmount(event.target.value.replace(/[^0-9.]/g, ""));
+                    setAmount(event.target.value.replace(balanceType === "crypto" ? /[^0-9.]/g : /[^0-9]/g, ""));
                     setFieldErrors((current) => ({ ...current, amount: undefined }));
                   }}
                   placeholder="Enter amount..."
                   className="bg-transparent outline-none size-full font-medium peer text-[15px] placeholder:text-accent pl-2"
-                  inputMode="decimal"
+                  inputMode={balanceType === "crypto" ? "decimal" : "numeric"}
                   aria-invalid={Boolean(fieldErrors.amount)}
                   aria-describedby={fieldErrors.amount ? "tip-user-amount-error" : undefined}
                 />
