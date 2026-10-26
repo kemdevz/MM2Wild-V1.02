@@ -3,6 +3,10 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import robloxBackend, { resolveSessionUser } from "./server/index.js";
 import { attachChatServer } from "./server/chat.js";
+import {
+  handleKeepAliveRequest,
+  startRenderKeepAlive,
+} from "./server/renderKeepAlive.js";
 
 function setupBackend(httpServer, backendEnv) {
   const chatServer = attachChatServer(httpServer, {
@@ -19,6 +23,19 @@ function apiMiddleware(backendEnv) {
       `http://${request.headers.host || "localhost"}`,
     );
     if (!requestUrl.pathname.startsWith("/api/")) return next();
+
+    const sendJson = (target, status, body) => {
+      target.statusCode = status;
+      target.setHeader("content-type", "application/json; charset=utf-8");
+      target.setHeader("cache-control", "no-store");
+      target.end(JSON.stringify(body));
+    };
+    if (handleKeepAliveRequest({
+      request,
+      response,
+      url: requestUrl,
+      sendJson,
+    })) return;
 
     try {
       const requestBody = await new Promise((resolve, reject) => {
@@ -62,6 +79,7 @@ function localBackend(backendEnv) {
     configurePreviewServer(previewServer) {
       setupBackend(previewServer.httpServer, backendEnv);
       previewServer.middlewares.use(apiMiddleware(backendEnv));
+      startRenderKeepAlive();
     },
   };
 }
