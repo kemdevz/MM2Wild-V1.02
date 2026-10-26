@@ -39,8 +39,6 @@ const games = [
   { game: "upgrader", winChance: 0.45, baseMultiplier: 2.0 },
   { game: "battles", winChance: 0.48, baseMultiplier: 1.9 },
   { game: "cases", winChance: 0.4, baseMultiplier: 2.5 },
-  { game: "mines", winChance: 0.42, baseMultiplier: 2.2 },
-  { game: "plinko", winChance: 0.5, baseMultiplier: 1.5 },
   { game: "roulette", winChance: 0.47, baseMultiplier: 2.0 },
 ];
 

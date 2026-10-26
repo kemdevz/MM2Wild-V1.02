@@ -450,16 +450,15 @@ body {
 
 .app-background {
   pointer-events: none;
-  background-image:
-    linear-gradient(
-      to bottom right,
-      rgba(19, 28, 47, 0.45),
-      rgba(33, 42, 83, 0.45)
-    ),
-    url("/landscape.avif");
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+  background: linear-gradient(to bottom right in oklab, #131c2f 0%, #212a53 100%);
+}
+
+.app-background::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: url("/landscape.avif") center / cover;
+  opacity: 0.47;
 }
 
 button,
@@ -1303,7 +1302,7 @@ a {
 
 .leaderboard-page {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .leaderboard-backdrop {
@@ -1312,14 +1311,14 @@ a {
   left: 0;
   right: 0;
   height: 240px;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
   transition: left 200ms ease-in-out;
 }
 
 @media (min-width: 768px) {
   .leaderboard-backdrop {
-    height: 520px;
+    height: 440px;
   }
 }
 
@@ -1333,26 +1332,36 @@ a {
   animation: leaderboard-image-in 220ms ease-out both;
 }
 
-.leaderboard-float-slow { animation: leaderboard-float 6s ease-in-out infinite; }
-.leaderboard-float-slow-reverse { animation: leaderboard-float-reverse 6s ease-in-out infinite; }
-.leaderboard-float-coin { animation: leaderboard-coin-float 5s ease-in-out infinite; }
-.leaderboard-float-coin-reverse { animation: leaderboard-coin-float-reverse 5.4s ease-in-out infinite; }
-.leaderboard-float-coin-delay { animation: leaderboard-coin-float 5.2s ease-in-out -2.2s infinite; }
-.leaderboard-float-coin-delay-reverse { animation: leaderboard-coin-float-reverse 5.7s ease-in-out -3s infinite; }
+.leaderboard-float-slow { animation: leaderboard-float-slow 4s linear infinite; }
+.leaderboard-float-slow-reverse { animation: leaderboard-float-slow-reverse 4.5s linear .5s infinite; }
+.leaderboard-float-coin { animation: leaderboard-float-coin 3s linear .3s infinite; }
+.leaderboard-float-coin-reverse { animation: leaderboard-float-coin-reverse 3.5s linear .8s infinite; }
+.leaderboard-float-coin-delay { animation: leaderboard-float-coin 3.2s linear 1s infinite; }
+.leaderboard-float-coin-delay-reverse { animation: leaderboard-float-coin-reverse 3.7s linear 1.5s infinite; }
 
 @keyframes leaderboard-image-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes leaderboard-float {
-  0%, 100% { transform: translate3d(0, 0, 0) rotate(-1deg); }
-  50% { transform: translate3d(0, -10px, 0) rotate(1.5deg); }
+@keyframes leaderboard-float-slow {
+  0%, 100% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  50% { transform: translateY(-15px); animation-timing-function: ease-in-out; }
 }
 
-@keyframes leaderboard-float-reverse {
-  0%, 100% { transform: translate3d(0, -8px, 0) rotate(1deg); }
-  50% { transform: translate3d(0, 2px, 0) rotate(-1.5deg); }
+@keyframes leaderboard-float-slow-reverse {
+  0%, 100% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  50% { transform: translateY(-12px); animation-timing-function: ease-in-out; }
+}
+
+@keyframes leaderboard-float-coin {
+  0%, 100% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  50% { transform: translateY(-10px); animation-timing-function: ease-in-out; }
+}
+
+@keyframes leaderboard-float-coin-reverse {
+  0%, 100% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  50% { transform: translateY(-8px); animation-timing-function: ease-in-out; }
 }
 
 @keyframes leaderboard-coin-float {
@@ -1384,5 +1393,96 @@ a {
   .leaderboard-float-coin-delay,
   .leaderboard-float-coin-delay-reverse {
     animation: none;
+  }
+}
+/* Battle creation percentage controls */
+.battle-range {
+  appearance: none;
+  width: 100%;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.battle-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #e5ad4e 0,
+    #e5ad4e var(--battle-range-progress, 50%),
+    #1b2641 var(--battle-range-progress, 50%),
+    #1b2641 100%
+  );
+}
+
+.battle-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.battle-range::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: #1b2641;
+}
+
+.battle-range::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: #e5ad4e;
+}
+
+.battle-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+}
+.battles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.battles-list > .battle-card {
+  animation: battle-row-enter 300ms ease-out;
+}
+
+.battle-page {
+  margin-top: 20px;
+}
+
+.battle-detail-player-grid {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .battle-detail-player-grid {
+    grid-template-columns: repeat(var(--battle-detail-slots), minmax(0, 1fr));
+  }
+}
+
+.battle-round-highlight {
+  position: absolute;
+  z-index: 0;
+  top: 6px;
+  bottom: 6px;
+  left: var(--battle-round-offset);
+  width: 72px;
+  background: rgb(55 73 123 / 45%);
+  box-shadow: 0 0 24px rgb(87 104 154 / 24%);
+  pointer-events: none;
+}
+
+@keyframes battle-row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
   }
 }

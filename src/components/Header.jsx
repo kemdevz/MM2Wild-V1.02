@@ -213,74 +213,6 @@ function GamesDropdown({ style, selectedGame, onSelect }) {
             <p className="font-semibold">Upgrader</p>
           </div>
         </a>
-        <a
-          href="/games/mines"
-          className="h-9.5 relative group/button"
-          type="button"
-          onClick={(event) => selectGame(event, "/games/mines")}
-        >
-          <div className="absolute top-1/3 left-0 right-0 bottom-0 bg-[#344986] rounded-lg" />
-          <div
-            className="group/dropdown-item h-[calc(100%-3px)] *:drop-shadow-[0_2px_0_#344986] flex items-center gap-2 select-none rounded-lg px-2.5 text-sm font-medium outline-none cursor-pointer relative hover:-translate-y-0.5 active:translate-y-0 transition-transform duration-125 bg-[#57689A]"
-            data-active={selectedGame === "/games/mines"}
-          >
-            <div className="group-data-[active=true]/dropdown-item:opacity-100 opacity-0 transition-opacity absolute inset-0 p-0.5 rounded-lg bg-gradient-to-tr from-[#E5AD4E] via-[#E5AD4E]/11 to-[#E5AD4E]/45 !drop-shadow-none">
-              <div className="size-full rounded-[6px] bg-linear-to-r from-[#36449E]/60 to-[#36449E] drop-shadow-none!" />
-            </div>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 19 15"
-              className="size-4.5 transition-colors group-data-[active=true]/dropdown-item:text-[#FFD896]"
-            >
-              <path
-                fill="currentColor"
-                d="m18.287 3.857-.402-.401a.602.602 0 1 0-.851.851l.401.401a.6.6 0 0 0 .852 0 .602.602 0 0 0 0-.851ZM15.88 3.456a.602.602 0 0 0-.852 0l-.401.401a.602.602 0 1 0 .85.851l.402-.4a.602.602 0 0 0 0-.852ZM18.288 1.048a.6.6 0 0 0-.852 0l-.401.4a.602.602 0 1 0 .851.852l.402-.401a.602.602 0 0 0 0-.851Z"
-              />
-              <path
-                fill="currentColor"
-                d="m15.927 1.596-.852-.852a1.808 1.808 0 0 0-2.554 0l-.284.284-.851-.852a.602.602 0 0 0-.852 0L8.927 1.784a6.422 6.422 0 0 0-2.508-.505c-1.717 0-3.33.667-4.541 1.878a6.43 6.43 0 0 0 0 9.082 6.378 6.378 0 0 0 4.54 1.878c1.718 0 3.331-.667 4.542-1.878a6.378 6.378 0 0 0 1.878-4.541c0-.877-.174-1.726-.505-2.508l1.607-1.608a.602.602 0 0 0 0-.851l-.851-.852.284-.284a.603.603 0 0 1 .851 0l.851.852a.6.6 0 0 0 .852 0 .602.602 0 0 0 0-.851Zm-6.668 8.936a3.986 3.986 0 0 1-2.837 1.176 3.986 3.986 0 0 1-2.837-1.176.602.602 0 1 1 .851-.852 2.79 2.79 0 0 0 1.986.824c.75 0 1.455-.292 1.986-.824a.602.602 0 1 1 .851.852Z"
-              />
-            </svg>
-            <p className="font-semibold">Mines</p>
-          </div>
-        </a>
-        <a
-          href="/games/plinko"
-          className="h-9.5 relative group/button"
-          type="button"
-          onClick={(event) => selectGame(event, "/games/plinko")}
-        >
-          <div className="absolute top-1/3 left-0 right-0 bottom-0 bg-[#344986] rounded-lg" />
-          <div
-            className="group/dropdown-item h-[calc(100%-3px)] *:drop-shadow-[0_2px_0_#344986] flex items-center gap-2 select-none rounded-lg px-2.5 text-sm font-medium outline-none cursor-pointer relative hover:-translate-y-0.5 active:translate-y-0 transition-transform duration-125 bg-[#57689A]"
-            data-active={selectedGame === "/games/plinko"}
-          >
-            <div className="group-data-[active=true]/dropdown-item:opacity-100 opacity-0 transition-opacity absolute inset-0 p-0.5 rounded-lg bg-gradient-to-tr from-[#E5AD4E] via-[#E5AD4E]/11 to-[#E5AD4E]/45 !drop-shadow-none">
-              <div className="size-full rounded-[6px] bg-linear-to-r from-[#36449E]/60 to-[#36449E] drop-shadow-none!" />
-            </div>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 41 36"
-              className="size-4.5 transition-colors group-data-[active=true]/dropdown-item:text-[#FFD896]"
-            >
-              <path
-                fill="currentColor"
-                fillRule="evenodd"
-                d="M20.236 13.878c2.757 0 4.992-1.927 4.992-4.304 0-2.377-2.235-4.303-4.992-4.303-2.758 0-4.993 1.926-4.993 4.303s2.236 4.304 4.993 4.304Zm0-3.051c1.415 0 2.562-.99 2.562-2.21S21.651 6.41 20.236 6.41c-1.415 0-2.563.989-2.563 2.209 0 1.22 1.148 2.209 2.563 2.209ZM19.153 18.84c0 2.042-1.921 3.698-4.29 3.698-2.37 0-4.292-1.656-4.292-3.699s1.921-3.699 4.291-3.699 4.291 1.656 4.291 3.7Zm-2.166-1.527c0 .994-.934 1.8-2.087 1.8-1.152 0-2.087-.806-2.087-1.8s.935-1.8 2.087-1.8c1.153 0 2.087.806 2.087 1.8ZM25.61 22.7c2.473 0 4.478-1.728 4.478-3.86 0-2.133-2.005-3.862-4.479-3.862-2.473 0-4.479 1.729-4.479 3.861 0 2.133 2.006 3.861 4.48 3.861Zm-.117-3.588c1.152 0 2.087-.805 2.087-1.8 0-.993-.934-1.798-2.087-1.798s-2.087.805-2.087 1.799c0 .994.934 1.8 2.087 1.8ZM34.949 28.104c0 1.888-1.776 3.419-3.966 3.419-2.19 0-3.967-1.531-3.967-3.42 0-1.888 1.776-3.419 3.967-3.419 2.19 0 3.966 1.531 3.966 3.42Zm-2.352-1.573c0 .742-.698 1.343-1.558 1.343-.86 0-1.558-.601-1.558-1.343s.697-1.343 1.558-1.343c.86 0 1.558.601 1.558 1.343ZM20.081 31.523c2.19 0 3.967-1.531 3.967-3.42 0-1.888-1.776-3.419-3.966-3.419-2.19 0-3.967 1.531-3.967 3.42 0 1.888 1.776 3.419 3.966 3.419Zm.057-3.649c.86 0 1.558-.601 1.558-1.343s-.698-1.343-1.558-1.343c-.86 0-1.558.601-1.558 1.343s.698 1.343 1.558 1.343ZM13.72 28.104c0 1.888-1.776 3.419-3.966 3.419-2.19 0-3.966-1.531-3.966-3.42 0-1.888 1.775-3.419 3.966-3.419 2.19 0 3.966 1.531 3.966 3.42Zm-2.352-1.573c0 .742-.697 1.343-1.558 1.343-.86 0-1.558-.601-1.558-1.343s.698-1.343 1.558-1.343c.86 0 1.558.601 1.558 1.343Z"
-                clipRule="evenodd"
-              />
-              <path
-                fill="currentColor"
-                fillRule="evenodd"
-                d="M33.92 36H7.08c-5.626-.857-8.906-6.79-6-11.685L13.098 4.077c3.228-5.436 11.575-5.436 14.803 0L39.92 24.315c2.906 4.894-.374 10.828-6 11.685ZM25.778 5.183l12.018 20.239c2.24 3.77-.671 8.407-5.278 8.407H8.482c-4.607 0-7.517-4.637-5.278-8.407L15.222 5.183c2.302-3.876 8.254-3.876 10.556 0Z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <p className="font-semibold">Plinko</p>
-          </div>
-        </a>
       </div>
     </div>
   );
@@ -743,6 +675,13 @@ export default function Header({ onInitialRenderReady, selectedBalanceType, onBa
 
   const handleSignedIn = useCallback((user) => {
     setSignedInUser(user);
+    window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", {
+      detail: {
+        mm2Balance: Number(user?.mm2_balance) || 0,
+        cryptoBalance: Number(user?.crypto_balance) || 0,
+        user,
+      },
+    }));
   }, []);
 
   const navigateToGame = useCallback((game) => {
@@ -754,6 +693,12 @@ export default function Header({ onInitialRenderReady, selectedBalanceType, onBa
     window.history.pushState({}, "", game);
     window.dispatchEvent(new PopStateEvent("popstate"));
     window.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
+
+  useEffect(() => {
+    const openSignIn = () => setIsSignInOpen(true);
+    window.addEventListener("mm2wild:open-sign-in", openSignIn);
+    return () => window.removeEventListener("mm2wild:open-sign-in", openSignIn);
   }, []);
 
   useEffect(() => {
@@ -801,8 +746,13 @@ export default function Header({ onInitialRenderReady, selectedBalanceType, onBa
     const controller = new AbortController();
     const updateBalance = async (event) => {
       const mm2Balance = Number(event.detail?.mm2Balance);
-      if (Number.isFinite(mm2Balance)) {
-        setSignedInUser((current) => current ? { ...current, mm2_balance: mm2Balance } : current);
+      const cryptoBalance = Number(event.detail?.cryptoBalance);
+      if (Number.isFinite(mm2Balance) || Number.isFinite(cryptoBalance)) {
+        setSignedInUser((current) => current ? {
+          ...current,
+          ...(Number.isFinite(mm2Balance) ? { mm2_balance: mm2Balance } : {}),
+          ...(Number.isFinite(cryptoBalance) ? { crypto_balance: cryptoBalance } : {}),
+        } : current);
         return;
       }
       try {

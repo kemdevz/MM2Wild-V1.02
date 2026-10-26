@@ -2,20 +2,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Header from "./components/Header";
 import Subheader from "./components/Subheader";
 import ChatSidebar from "./components/ChatSidebar";
-import HomePage, { Footer } from "./pages/HomePage";
-import ProfilePage from "./pages/ProfilePage";
-import TermsPage from "./pages/TermsPage";
-import LeaderboardPage from "./pages/LeaderboardPage";
-import FairnessPage from "./pages/FairnessPage";
-import RewardsPage from "./pages/RewardsPage";
+import Home, { Footer } from "./pages/Home";
+import Profile from "./pages/Profile";
+import Terms from "./pages/Terms";
+import Leaderboard from "./pages/Leaderboard";
+import Fairness from "./pages/Fairness";
+import Rewards from "./pages/Rewards";
 import LoadingScreen from "./components/LoadingScreen";
-import AffiliatesPage from "./pages/AffiliatesPage";
+import Affiliates from "./pages/Affiliates";
 import NotificationCenter from "./components/NotificationCenter";
-import RoulettePage from "./pages/RoulettePage";
-import CoinflipPage from "./pages/CoinflipPage";
-import CasesPage from "./pages/CasesPage";
+import Roulette from "./pages/Roulette";
+import Coinflip from "./pages/Coinflip";
+import Cases from "./pages/Cases";
 import CaseOpen from "./pages/CaseOpen";
-import PlinkoPage from "./pages/PlinkoPage";
+import Battles from "./pages/Battles";
+import BattleCreate from "./pages/BattleCreate";
+import Battle from "./pages/Battle";
 import LineWobbleLoader from "./components/LineWobbleLoader";
 
 export default function App() {
@@ -146,8 +148,10 @@ export default function App() {
   const isRoulettePage = pathname === "/games/roulette";
   const isCoinflipPage = pathname === "/games/coinflip";
   const isCasesPage = pathname === "/games/cases";
+  const isBattlesPage = pathname === "/games/battles";
+  const isBattleCreatePage = pathname === "/games/battles/create";
   const caseOpenMatch = pathname.match(/^\/games\/cases\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/);
-  const isPlinkoPage = pathname === "/games/plinko";
+  const battleMatch = pathname.match(/^\/games\/battles\/(\d+|[0-9a-f-]{36})\/?$/i);
 
   return (
     <>
@@ -165,29 +169,33 @@ export default function App() {
         />
         <div ref={pageRef} aria-busy={isPageLoading} className="min-h-screen flex flex-col">
           {isAccountPage ? (
-            <ProfilePage activeTab={activeTab} />
+            <Profile activeTab={activeTab} />
           ) : isTermsPage ? (
-            <TermsPage />
+            <Terms />
           ) : isLeaderboardPage ? (
-            <LeaderboardPage />
+            <Leaderboard />
           ) : isFairnessPage ? (
-            <FairnessPage />
+            <Fairness />
           ) : isRewardsPage ? (
-            <RewardsPage />
+            <Rewards />
           ) : isAffiliatesPage ? (
-            <AffiliatesPage />
+            <Affiliates />
           ) : isRoulettePage ? (
-            <RoulettePage />
+            <Roulette />
           ) : isCoinflipPage ? (
-            <CoinflipPage />
+            <Coinflip />
           ) : isCasesPage ? (
-            <CasesPage />
+            <Cases />
+          ) : isBattleCreatePage ? (
+            <BattleCreate />
+          ) : isBattlesPage ? (
+            <Battles />
+          ) : battleMatch ? (
+            <Battle id={battleMatch[1]} />
           ) : caseOpenMatch ? (
             <CaseOpen slug={caseOpenMatch[1]} />
-          ) : isPlinkoPage ? (
-            <PlinkoPage selectedBalanceType={selectedBalanceType} />
           ) : (
-            <HomePage />
+            <Home />
           )}
           <div className="global-footer mt-auto">
             <Footer />

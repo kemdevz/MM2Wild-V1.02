@@ -6,11 +6,6 @@ const EOS_MAINNET_CHAIN_ID = "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbea
 const EOS_BLOCKS_AHEAD = 2;
 const EOS_POLL_MS = 250;
 const EOS_TIMEOUT_MS = 10000;
-const LOCAL_ITEM_IMAGES = {
-  "chroma icecream": "/items/chroma-icecream.webp",
-  "chroma sands": "/items/chroma-sands.webp",
-  "chroma beachy": "/items/chroma-beachy.webp",
-};
 const COINFLIP_BOTS = [
   ["Travis", "/bots/travis.webp"],
   ["Drake", "/bots/drake.webp"],
@@ -91,9 +86,7 @@ function randomSeed() {
 }
 
 function formatItem(item) {
-  const rawImageUrl = String(item.image_url ?? item.imageUrl ?? "").trim()
-    || LOCAL_ITEM_IMAGES[String(item.name || "").trim().toLowerCase()]
-    || "";
+  const rawImageUrl = String(item.image_url ?? item.imageUrl ?? "").trim();
   return {
     id: item.id,
     name: item.name,

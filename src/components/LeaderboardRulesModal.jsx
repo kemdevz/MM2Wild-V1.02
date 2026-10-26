@@ -6,8 +6,6 @@ const gameRules = [
   ["Coinflip", "coinflip", "75.00%", "130, 164, 255", false],
   ["Roulette", "roulette", "66.67%", "78, 229, 226", false],
   ["Upgrader", "upgrader", "100.00%", "118, 229, 78", true],
-  ["Mines", "mines", "100.00%", "78, 116, 229", true],
-  ["Plinko", "plinko", "100.00%", "255, 172, 104", true],
 ];
 
 function RuleCard({ label, image, percentage, color, starred }) {
@@ -173,7 +171,7 @@ export default function LeaderboardRulesModal({ onClose }) {
             <div className="flex flex-col gap-3">
               <Accordion title="SPECIAL RACE RULES" id="special-race-rules">
                 <div className="flex flex-col gap-2">
-                  <p className="font-semibold text-white text-sm">Upgrader, Mines, Roll</p>
+                  <p className="font-semibold text-white text-sm">Upgrader, Roll</p>
                   <Lines>
                     <span className="font-medium">If you play at 2.00x or higher, you get the full race % shown above.</span>
                     <span className="font-medium">If you play under 2.00x, it counts less based on the multiplier.</span>

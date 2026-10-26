@@ -10,6 +10,7 @@ import {
   proxyCoinflipItemImage,
 } from "./coinflip.js";
 import { getCase, listCases, openCase } from "./cases.js";
+import { createBattle, getBattle, listBattles } from "./battles.js";
 
 const json = (body, status = 200, extraHeaders = {}) =>
   new Response(JSON.stringify(body), {
@@ -1007,7 +1008,7 @@ async function rotateServerSeed(request, env) {
 }
 
 
-const VALID_GAME_FILTERS = ["all", "mines", "plinko", "battles", "coinflip", "roulette", "cases", "upgrader"];
+const VALID_GAME_FILTERS = ["all", "battles", "coinflip", "roulette", "cases", "upgrader"];
 
 
 const VALID_METHOD_FILTERS = ["all", "rakeback", "mm2_deposit", "mm2_withdraw", "crypto_deposit", "crypto_withdraw", "tip_sent", "tip_received", "affiliate"];
@@ -1202,6 +1203,37 @@ export default {
         return json({ cases: await listCases(env) });
       } catch (error) {
         return json({ error: error.message || "Could not load cases." }, 503);
+      }
+    }
+    if (url.pathname === "/api/battles" && request.method === "GET") {
+      try {
+        return json({ battles: await listBattles(env, { limit: url.searchParams.get("limit") }) });
+      } catch (error) {
+        return json({ error: error.message || "Could not load battles." }, 503);
+      }
+    }
+    if (url.pathname === "/api/battles" && request.method === "POST") {
+      const user = await resolveSessionUser(cookieValue(request, "mm2wild_session"), env);
+      if (!user) return missingSession(request);
+      const body = await request.json().catch(() => null);
+      try {
+        const battle = await createBattle(env, user, body);
+        const refreshedUser = await resolveSessionUser(cookieValue(request, "mm2wild_session"), env);
+        return json({ battle, balance: Number(refreshedUser?.mm2_balance ?? 0) }, 201);
+      } catch (error) {
+        const message = error.message || "The battle could not be created.";
+        const status = /insufficient balance/i.test(message) ? 409
+          : /choose|invalid|cannot|add at least|no more than|unavailable/i.test(message) ? 400 : 503;
+        return json({ error: message }, status);
+      }
+    }
+    const battleRoute = url.pathname.match(/^\/api\/battles\/(\d+|[0-9a-f-]{36})$/i);
+    if (battleRoute && request.method === "GET") {
+      try {
+        const battle = await getBattle(env, battleRoute[1], url.searchParams.get("key") || "");
+        return battle ? json({ battle }) : json({ error: "Battle not found." }, 404);
+      } catch (error) {
+        return json({ error: error.message || "Could not load this battle." }, 503);
       }
     }
     const caseRoute = url.pathname.match(/^\/api\/cases\/([a-z0-9]+(?:-[a-z0-9]+)*)(\/open)?$/);
