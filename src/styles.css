@@ -1454,12 +1454,30 @@ a {
   animation: battle-row-enter 300ms ease-out;
 }
 
-.battle-page {
-  margin-top: 20px;
-}
-
 .battle-detail-player-grid {
   grid-template-columns: 1fr;
+}
+
+.player-header .total-pill {
+  background: rgb(0 0 0 / 20%);
+}
+
+.player-header .total-pill.is-jackpot {
+  color: rgb(var(--color));
+  background: rgba(var(--color), 0.15);
+}
+
+.player-header .total-pill.is-total:not(.is-jackpot) {
+  background: rgb(0 0 0 / 15%);
+}
+
+.player-header .total-pill.is-total.is-winner:not(.is-jackpot) {
+  background: rgb(0 0 0 / 20%);
+}
+
+.player-inventory .won-item {
+  width: 100%;
+  height: 100%;
 }
 
 @media (min-width: 768px) {

@@ -50,6 +50,7 @@ function formatBattle(row) {
     minimumLevel: Number(row.minimum_level),
     accessKey: row.access_key || null,
     currentRound: Number(row.current_round),
+    results: Array.isArray(row.results) ? row.results : [],
     createdAt: row.created_at,
     startedAt: row.started_at,
     completedAt: row.completed_at,
