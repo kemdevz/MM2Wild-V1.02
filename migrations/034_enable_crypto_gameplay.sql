@@ -8,12 +8,16 @@ alter table public.mm2wild_battles add column if not exists currency_finalized b
 alter table public.mm2wild_roulette_bets add column if not exists balance_type text not null default 'mm2';
 alter table public.mm2wild_rains add column if not exists balance_type text;
 alter table public.mm2wild_rains add column if not exists currency_settled_at timestamptz;
--- These columns previously allowed up to 20 whole-number digits. Keep that
--- integer capacity while adding eight decimal places for crypto amounts.
-alter table public.mm2wild_bets alter column amount type numeric(28,8) using amount::numeric(28,8), alter column profit type numeric(28,8) using profit::numeric(28,8);
-alter table public.mm2wild_roulette_bets alter column amount type numeric(28,8) using amount::numeric(28,8), alter column payout type numeric(28,8) using payout::numeric(28,8), alter column profit type numeric(28,8) using profit::numeric(28,8);
-alter table public.mm2wild_rains alter column pool type numeric(28,8) using pool::numeric(28,8);
-alter table public.mm2wild_rain_entries alter column payout type numeric(28,8) using payout::numeric(28,8);
+-- Shared MM2/crypto columns must accept fractional crypto values without
+-- forcing eight trailing zeroes onto whole MM2 values.
+alter table public.mm2wild_users alter column crypto_balance type numeric using trim_scale(crypto_balance), alter column total_wagered type numeric using trim_scale(total_wagered);
+alter table public.mm2wild_tips alter column amount type numeric using trim_scale(amount);
+alter table public.mm2wild_bets alter column amount type numeric using trim_scale(amount), alter column profit type numeric using trim_scale(profit);
+alter table public.mm2wild_case_openings alter column balance_after type numeric using trim_scale(balance_after);
+alter table public.mm2wild_roulette_rounds alter column total_pot type numeric using trim_scale(total_pot);
+alter table public.mm2wild_roulette_bets alter column amount type numeric using trim_scale(amount), alter column payout type numeric using trim_scale(payout), alter column profit type numeric using trim_scale(profit);
+alter table public.mm2wild_rains alter column pool type numeric using trim_scale(pool);
+alter table public.mm2wild_rain_entries alter column payout type numeric using trim_scale(payout);
 
 update public.mm2wild_coinflip set currency_finalized = true where status = 'complete';
 update public.mm2wild_battles set currency_finalized = true where status in ('complete', 'cancelled');

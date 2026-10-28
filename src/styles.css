@@ -1458,6 +1458,17 @@ a {
   grid-template-columns: 1fr;
 }
 
+.battle-detail-spinner-inner {
+  height: 400px;
+  min-height: 400px;
+  transition: height 600ms ease-in-out, min-height 600ms ease-in-out;
+}
+
+.battle-detail-spinner.is-stacked-spinner .battle-detail-spinner-inner {
+  height: 700px;
+  min-height: 700px;
+}
+
 .player-header .total-pill {
   background: rgb(0 0 0 / 20%);
 }
@@ -1485,6 +1496,8 @@ a {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background: #1b2540;
+  box-shadow: inset -1px -1px 0 rgb(47 62 108 / 72%);
 }
 
 .battle-live-reel-track {
@@ -1521,17 +1534,17 @@ a {
 
 .battle-live-reel.is-vertical .battle-live-reel-item {
   width: 100%;
-  height: 112px;
+  height: 152px;
 }
 
 .battle-live-reel.is-horizontal .battle-live-reel-item {
-  width: 92px;
-  height: 108px;
+  width: 152px;
+  height: 100%;
 }
 
 .battle-live-reel-item img:not([src="/coin.webp"]) {
-  width: 72px;
-  height: 72px;
+  width: 116px;
+  height: 116px;
 }
 
 .battle-live-reel-item.is-result {
@@ -1539,23 +1552,50 @@ a {
   filter: none;
 }
 
+.battle-live-reel-glow {
+  width: 148px;
+  height: 148px;
+  opacity: 0;
+  background:
+    radial-gradient(circle, rgba(var(--battle-rarity), .28) 0 36%, transparent 66%),
+    repeating-radial-gradient(circle, rgba(var(--battle-rarity), .58) 0 2px, transparent 3px 14px);
+  filter: drop-shadow(0 0 20px rgba(var(--battle-rarity), .38));
+}
+
+.battle-live-reel-item.is-result .battle-live-reel-glow {
+  opacity: .82;
+}
+
 .battle-live-reel-caption {
   max-width: 90%;
   text-align: center;
   font-size: 12px;
+  line-height: 1.2;
 }
 
 .battle-live-reel.is-horizontal .battle-live-reel-caption {
-  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  width: 140px;
+  transform: translateX(-50%);
+  opacity: 0;
+}
+
+.battle-live-reel.is-horizontal .battle-live-reel-item.is-result .battle-live-reel-caption {
+  opacity: 1;
+}
+
+.battle-live-rarity {
+  margin-bottom: 2px;
+  font-size: 11px;
 }
 
 .battle-live-player {
   position: absolute;
   z-index: 2;
-  bottom: 10px;
-  left: 50%;
-  max-width: 80%;
-  transform: translateX(-50%);
+  top: 12px;
+  right: 14px;
 }
 
 .battle-tally {
@@ -1574,7 +1614,7 @@ a {
 
 @keyframes battle-reel-horizontal {
   from { transform: translate(100%, -50%); }
-  to { transform: translate(calc(50% - 46px + var(--battle-reel-end)), -50%); }
+  to { transform: translate(calc(50% - 76px + var(--battle-reel-end)), -50%); }
 }
 
 @media (prefers-reduced-motion: reduce) {

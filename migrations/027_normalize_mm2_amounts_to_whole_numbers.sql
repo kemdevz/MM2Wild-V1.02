@@ -50,7 +50,11 @@ alter table public.mm2wild_coinflip
   alter column joiner_wager type numeric(20, 0) using round(joiner_wager);
 
 alter table public.mm2wild_items
-  alter column value type numeric(20, 0) using round(value);
+  -- The item catalog intentionally supports positive sub-one values. Only
+  -- values at or above one are MM2 whole-number values.
+  alter column value type numeric using trim_scale(
+    case when value >= 1 then round(value) else value end
+  );
 
 -- Tips share one column between MM2 and crypto, so retain eight-place crypto
 -- precision while requiring MM2 tip rows to be whole numbers.

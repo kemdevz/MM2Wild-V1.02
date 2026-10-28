@@ -50,8 +50,32 @@ function roundDuration(row) {
   return row.fast_spin ? 1_600 : 5_200;
 }
 
+function localBattleImage(item) {
+  const itemId = Number(item?.itemId ?? item?.item_id ?? item?.id);
+  if (Number.isSafeInteger(itemId) && itemId > 0) return `/items/${itemId}.webp`;
+  const source = String(item?.imageUrl || item?.image_url || "");
+  const pathId = source.match(/\/items\/(\d+)\.webp(?:$|[?#])/i)?.[1];
+  return pathId ? `/items/${pathId}.webp` : source;
+}
+
+function normalizeBattleDrop(drop) {
+  if (!drop || typeof drop !== "object") return drop;
+  return {
+    ...drop,
+    imageUrl: localBattleImage(drop),
+    reel: Array.isArray(drop.reel)
+      ? drop.reel.map((item) => ({ ...item, imageUrl: localBattleImage(item) }))
+      : drop.reel,
+  };
+}
+
 function formatBattle(row) {
-  const results = Array.isArray(row.results) ? row.results : [];
+  const results = Array.isArray(row.results)
+    ? row.results.map((round) => ({
+        ...round,
+        drops: Array.isArray(round?.drops) ? round.drops.map(normalizeBattleDrop) : [],
+      }))
+    : [];
   const payouts = row.payouts && typeof row.payouts === "object" ? row.payouts : {};
   const winners = new Set(Array.isArray(row.winner_slots) ? row.winner_slots.map(Number) : []);
   const rawPlayers = Array.isArray(row.players) ? row.players : [];
@@ -175,7 +199,12 @@ async function caseCatalogueWithItems(env, battle) {
   const response = await request(env, `mm2wild_cases?${query}`);
   const rows = await response.json().catch(() => null);
   if (!response.ok || !Array.isArray(rows) || rows.length !== ids.length) throw new Error("Battle cases could not be loaded.");
-  return new Map(rows.map((row) => [Number(row.id), Array.isArray(row.items) ? row.items : []]));
+  return new Map(rows.map((row) => [
+    Number(row.id),
+    Array.isArray(row.items)
+      ? row.items.map((item) => ({ ...item, imageUrl: localBattleImage(item) }))
+      : [],
+  ]));
 }
 
 function slotTeams(layout) {
@@ -205,10 +234,10 @@ async function prepareBattle(env, row) {
         const reelDigest = await sha256(`${row.server_seed}:${eos.blockHash}:${roundIndex}:${slot}:reel:${reelIndex}`);
         const reelTicket = Number(BigInt(`0x${reelDigest.slice(0, 13)}`) % BigInt(MAX_TICKET));
         const reelItem = items.find((entry) => reelTicket >= Number(entry.range?.[0]) && reelTicket <= Number(entry.range?.[1]));
-        if (reelItem) reel.push({ name: reelItem.name, imageUrl: reelItem.imageUrl, rarity: reelItem.rarity, price: Number(reelItem.price) });
+        if (reelItem) reel.push({ itemId: Number(reelItem.itemId), name: reelItem.name, imageUrl: localBattleImage(reelItem), rarity: reelItem.rarity, price: Number(reelItem.price) });
       }
-      reel.push({ name: item.name, imageUrl: item.imageUrl, rarity: item.rarity, price: Number(item.price) });
-      const drop = { slot, itemId: Number(item.itemId), name: item.name, fullName: item.fullName || item.name, imageUrl: item.imageUrl, rarity: item.rarity, price: Number(item.price), ticket, reel };
+      reel.push({ itemId: Number(item.itemId), name: item.name, imageUrl: localBattleImage(item), rarity: item.rarity, price: Number(item.price) });
+      const drop = { slot, itemId: Number(item.itemId), name: item.name, fullName: item.fullName || item.name, imageUrl: localBattleImage(item), rarity: item.rarity, price: Number(item.price), ticket, reel };
       drops.push(drop);
       totals[slot] += drop.price;
     }
