@@ -511,11 +511,23 @@ async function sendUserTip(request, env) {
     );
     if (showInChat) {
       const announcement = {
-        sender: sender.username,
-        recipient: tip.recipient_username,
-        amount: Number(tip.amount).toLocaleString("en-US", {
-          maximumFractionDigits: tip.balance_type === "crypto" ? 8 : 0,
-        }),
+        sender: {
+          name: sender.username,
+          rank: sender.rank || "user",
+          level: sender.level ?? 1,
+          xp: sender.xp ?? 0,
+          color: chatColorForLevel(sender.level ?? 1),
+          avatar: sender.avatar_headshot,
+        },
+        recipient: {
+          name: tip.recipient_username,
+          rank: tip.recipient_rank || "user",
+          level: tip.recipient_level ?? 1,
+          xp: tip.recipient_xp ?? 0,
+          color: chatColorForLevel(tip.recipient_level ?? 1),
+          avatar: tip.recipient_avatar || "/coin.webp",
+        },
+        amount: Number(tip.amount),
         balanceType: tip.balance_type,
       };
       if (typeof env.CHAT_ANNOUNCE === "function") {
@@ -571,15 +583,11 @@ export class ChatRoom {
 
   announceUserTip({ sender, recipient, amount, balanceType }) {
     const tipMessage = {
-      type: "chat",
-      name: "Tip Bot",
-      body: `${sender} tipped ${recipient} ${amount} ${balanceType === "crypto" ? "crypto" : "MM2"} coins!`,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }),
-      user: { level: 99, color: "#E5AD4E", avatar: "/coin.webp" },
+      type: "user-tip",
+      sender,
+      recipient,
+      amount,
+      balanceType,
     };
     this.history.push(tipMessage);
     if (this.history.length > 50) this.history.shift();
@@ -609,6 +617,7 @@ export class ChatRoom {
           name: account.username,
           rank: account.rank || "user",
           level: account.level ?? 1,
+          xp: account.xp ?? 0,
           color: chatColorForLevel(account.level ?? 1),
           avatar: account.avatar_headshot,
         }
@@ -696,11 +705,9 @@ export class ChatRoom {
         }
         await this.broadcastRain();
         const tipMessage = {
-          type: "chat",
-          name: "Rain Bot",
-          body: `${identity.name} tipped ${payload.amount} coins to the rain pot!`,
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
-          user: { level: 99, color: "#E5AD4E", avatar: "/coin.webp" },
+          type: "rain-tip",
+          sender: identity,
+          amount: Math.max(0, Math.round(Number(payload.amount) || 0)),
         };
         this.history.push(tipMessage);
         if (this.history.length > 50) this.history.shift();

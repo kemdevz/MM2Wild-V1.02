@@ -25,6 +25,7 @@ export default function App() {
   const [isHeaderReady, setIsHeaderReady] = useState(false);
   const [isChatPresenceReady, setIsChatPresenceReady] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(false);
+  const [dataRevision, setDataRevision] = useState(0);
   const pageRef = useRef(null);
   const [selectedBalanceType, setSelectedBalanceType] = useState(() => (
     localStorage.getItem("mm2wild_balance_type") === "crypto" ? "crypto" : "mm2"
@@ -88,6 +89,39 @@ export default function App() {
       window.removeEventListener("popstate", updateRoute);
     };
   }, []);
+
+  useEffect(() => {
+    let refreshTimer;
+    const refreshForSupabaseChange = (event) => {
+      const table = event.detail?.table;
+      if (!table) return;
+
+      const relevantTables = pathname.startsWith("/account/")
+        ? ["mm2wild_users", "mm2wild_bets", "mm2wild_transactions", "mm2wild_tips", "mm2wild_sessions", "mm2wild_fairness"]
+        : pathname === "/leaderboard"
+          ? ["mm2wild_users"]
+          : pathname === "/rewards"
+            ? ["mm2wild_users"]
+            : pathname === "/affiliates"
+              ? ["mm2wild_affiliates", "mm2wild_users"]
+              : pathname.startsWith("/games/cases")
+                ? ["mm2wild_cases"]
+                : pathname === "/games/coinflip"
+                  ? ["mm2wild_coinflip"]
+                  : pathname.startsWith("/games/battles")
+                    ? ["mm2wild_battles", "mm2wild_cases"]
+                    : [];
+
+      if (!relevantTables.includes(table)) return;
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => setDataRevision((revision) => revision + 1), 120);
+    };
+    window.addEventListener("mm2wild:supabase-change", refreshForSupabaseChange);
+    return () => {
+      window.clearTimeout(refreshTimer);
+      window.removeEventListener("mm2wild:supabase-change", refreshForSupabaseChange);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (!isPageLoading) return undefined;
@@ -167,7 +201,7 @@ export default function App() {
           onInitialRenderReady={markChatPresenceReady}
           selectedBalanceType={selectedBalanceType}
         />
-        <div ref={pageRef} aria-busy={isPageLoading} className="min-h-screen flex flex-col">
+        <div key={`${pathname}-${dataRevision}`} ref={pageRef} aria-busy={isPageLoading} className="min-h-screen flex flex-col">
           {isAccountPage ? (
             <Profile activeTab={activeTab} />
           ) : isTermsPage ? (

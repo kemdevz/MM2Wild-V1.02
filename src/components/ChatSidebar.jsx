@@ -1222,6 +1222,79 @@ function ChatMessage({
   );
 }
 
+function TipNotification({ entry, onProfileClick }) {
+  const sender = entry.sender || {};
+  const recipient = entry.recipient || null;
+  const senderName = sender.name || sender.username || "Player";
+  const senderProfile = {
+    rank: sender.rank || "user",
+    level: sender.level ?? 1,
+    xp: sender.xp ?? 0,
+    color: sender.color || colorForLevel(sender.level ?? 1),
+    avatar: sender.avatar || "/coin.webp",
+  };
+  const recipientName = recipient?.name || recipient?.username || "Player";
+  const amount = Number(entry.amount) || 0;
+  const formattedAmount = amount.toLocaleString("en-US", {
+    maximumFractionDigits: entry.balanceType === "crypto" ? 8 : 0,
+  });
+
+  return (
+    <div className={`relative h-16 ${entry.animate ? "chat-message-enter" : ""}`}>
+      <div className="absolute top-1/2 left-0 right-0 bottom-0 bg-[#223263] rounded-[10px]" />
+      <div className="w-full h-15 absolute bottom-1 bg-linear-to-r from-[#A9906E] to-[#293B74]/55 rounded-[10px] p-0.5">
+        <div
+          className="p-2.5 rounded-lg flex items-center gap-2.5 relative overflow-hidden min-w-0 h-full"
+          style={{ background: "radial-gradient(32.46% 136.83% at 0% 100%, rgba(242,190,102,.65) 0%, rgba(41,59,116,0) 100%), #293B74" }}
+        >
+          <img src="/simple-leafs.webp" width="90" height="90" className="absolute -scale-x-100 -rotate-10 -left-8 -bottom-3 pointer-events-none" alt="" />
+          <img src="/simple-leafs.webp" width="130" height="130" className="absolute rotate-15 -right-1 -bottom-12 pointer-events-none" alt="" />
+          <img src="/simple-leafs.webp" width="40" height="40" className="absolute rotate-15 left-14 -bottom-4 pointer-events-none" alt="" />
+          <img src="/floating-coins-hq.webp" width="37" height="37" className="size-[37px] object-contain shrink-0 relative" alt="" />
+          <div className="flex flex-1 gap-2 items-center relative min-w-0">
+            <div className="flex flex-col gap-0.5 flex-1 min-w-0 overflow-hidden">
+              <div className="flex items-center gap-1.25 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => onProfileClick?.(senderName, senderProfile)}
+                  className="size-5.5 p-0.25 rounded-[6px] shrink-0 flex items-center cursor-pointer bg-linear-to-b from-[#252B3F] to-(--tip-profile-color)"
+                  style={{ "--tip-profile-color": senderProfile.color }}
+                  aria-label={`View ${senderName}'s profile`}
+                >
+                  <span className="size-full flex items-center justify-center rounded-[5px] bg-[#1A2339] overflow-hidden">
+                    <img src={senderProfile.avatar} className="size-9/12 object-contain rounded-[5px]" alt="" />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onProfileClick?.(senderName, senderProfile)}
+                  className="flex-1 min-w-0 truncate text-left text-xs font-medium cursor-pointer"
+                >
+                  {senderName}
+                </button>
+              </div>
+              <div className="text-xs font-medium flex items-center gap-1 min-w-0">
+                {entry.type === "rain-tip" ? (
+                  <span className="text-accent-light shrink-0">tipped the rain</span>
+                ) : (
+                  <>
+                    <span className="text-[#D9E5FF] shrink-0">tipped</span>
+                    <span className="text-[#D9E5FF] truncate min-w-0">{recipientName}</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="bg-[#1A2853]/80 px-1.75 py-1.25 rounded-lg flex items-center gap-1.5 leading-none font-medium shrink-0">
+              <img src="/coin.webp" className="size-4.5 object-contain" alt="" />
+              <span className="text-sm !leading-none tabular-nums">{formattedAmount}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ChatSidebar({ onInitialRenderReady, selectedBalanceType = "mm2" }) {
   const [message, setMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
@@ -1466,6 +1539,7 @@ export default function ChatSidebar({ onInitialRenderReady, selectedBalanceType 
         setMessages((current) => [
           ...current,
           {
+            type: "chat",
             name: payload.name,
             body: payload.body,
             time: payload.time,
@@ -1474,6 +1548,13 @@ export default function ChatSidebar({ onInitialRenderReady, selectedBalanceType 
             animate: true,
           },
         ]);
+      } else if (payload.type === "rain-tip" || payload.type === "user-tip") {
+        setMessages((current) => [...current, { ...payload, animate: true }]);
+      } else if (payload.type === "supabase_change") {
+        window.dispatchEvent(new CustomEvent("mm2wild:supabase-change", { detail: payload }));
+        if (payload.table === "mm2wild_users") {
+          window.dispatchEvent(new CustomEvent("mm2wild:balance-updated"));
+        }
       } else if (payload.type === "presence") {
         setOnlineCount(payload.online ?? 0);
       } else if (payload.type === "error") {
@@ -1647,6 +1728,12 @@ export default function ChatSidebar({ onInitialRenderReady, selectedBalanceType 
               <div className="flex-1 flex flex-col gap-5 px-3.5">
                 {messages.map((entry, index) => entry.type === "rain-ended" ? (
                   <RainEndedMessage key={`rain-ended-${entry.rainId}`} rain={entry} onProfileClick={openProfile} />
+                ) : entry.type === "rain-tip" || entry.type === "user-tip" ? (
+                  <TipNotification
+                    key={`${entry.type}-${entry.commitTimestamp || index}-${entry.amount}`}
+                    entry={entry}
+                    onProfileClick={openProfile}
+                  />
                 ) : (
                   <ChatMessage
                     key={`${entry.name}-${index}-${entry.body}`}

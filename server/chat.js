@@ -2,6 +2,7 @@
 import { WebSocketServer } from "ws";
 import { createRainState, createSupabaseRainStore, formatRainState } from "./rain.js";
 import { createRouletteState } from "./roulette.js";
+import { subscribeToSupabaseChanges } from "./supabaseRealtime.js";
 
 const HISTORY_LIMIT = 50;
 const MAX_BODY_LENGTH = 500;
@@ -40,6 +41,7 @@ async function resolveUser(cookieHeader, verifySession) {
       name: session.username || `User ${session.robloxUserId}`,
       rank: session.rank || "user",
       level: session.level ?? 1,
+      xp: session.xp ?? 0,
       avatar: session.avatar_headshot,
     };
   } catch {
@@ -52,6 +54,7 @@ function profileFor(user) {
   return {
     rank: user.rank || "user",
     level: user.level ?? 1,
+    xp: user.xp ?? 0,
     color: colorForLevel(user.level ?? 1),
     avatar: user.avatar,
   };
@@ -96,15 +99,17 @@ export function attachChatServer(httpServer, options = {}) {
 
   function announceUserTip({ sender, recipient, amount, balanceType }) {
     const tipMessage = {
-      type: "chat",
-      name: "Tip Bot",
-      body: `${sender} tipped ${recipient} ${amount} ${balanceType === "crypto" ? "crypto" : "MM2"} coins!`,
-      time: nowTime(),
-      user: { level: 99, color: "#E5AD4E", avatar: "/coin.webp" },
+      type: "user-tip",
+      sender,
+      recipient,
+      amount,
+      balanceType,
     };
     recordMessage(tipMessage);
     broadcast(tipMessage);
   }
+
+  subscribeToSupabaseChanges(options.env, broadcast);
 
   async function handleConnection(socket, user, clientId, presenceId) {
     const profile = profileFor(user);
@@ -196,11 +201,9 @@ export function attachChatServer(httpServer, options = {}) {
         }
         await broadcastRain();
         const tipMessage = {
-          type: "chat",
-          name: "Rain Bot",
-          body: `${identity.name} tipped ${payload.amount} coins to the rain pot!`,
-          time: nowTime(),
-          user: { level: 99, color: "#E5AD4E", avatar: "/coin.webp" },
+          type: "rain-tip",
+          sender: identity,
+          amount: Math.max(0, Math.round(Number(payload.amount) || 0)),
         };
         recordMessage(tipMessage);
         broadcast(tipMessage);
