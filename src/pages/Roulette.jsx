@@ -176,7 +176,7 @@ function ShadowButton({ children, onClick, disabled }) {
   );
 }
 
-export default function Roulette() {
+export default function Roulette({ balanceType = "mm2" }) {
   const [offset, setOffset] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -289,13 +289,13 @@ export default function Roulette() {
     fetch("/api/session", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!disposed && data?.user?.mm2_balance != null) {
-          setBalance(Number(data.user.mm2_balance));
+        if (!disposed && data?.user) {
+          setBalance(Number(data.user[balanceType === "crypto" ? "crypto_balance" : "mm2_balance"] || 0));
         }
       })
       .catch(() => {});
     return () => { disposed = true; };
-  }, []);
+  }, [balanceType]);
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -572,7 +572,7 @@ export default function Roulette() {
           fetch("/api/session", { credentials: "include" })
             .then((r) => (r.ok ? r.json() : null))
             .then((data) => {
-              if (data?.user?.mm2_balance != null) setBalance(Number(data.user.mm2_balance));
+              if (data?.user) setBalance(Number(data.user[balanceType === "crypto" ? "crypto_balance" : "mm2_balance"] || 0));
             })
             .catch(() => {});
           break;
@@ -587,17 +587,18 @@ export default function Roulette() {
             const nextBalance = Number(payload.balance);
             setBalance(nextBalance);
             window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", {
-              detail: { mm2Balance: nextBalance },
+              detail: payload.balanceType === "crypto" ? { cryptoBalance: nextBalance } : { mm2Balance: nextBalance },
             }));
           }
           break;
         }
         case "roulette_balance": {
-          if (payload.balance != null) {
-            const nextBalance = Number(payload.balance);
+          const returnedBalance = balanceType === "crypto" ? payload.cryptoBalance : payload.mm2Balance;
+          if (returnedBalance != null) {
+            const nextBalance = Number(returnedBalance);
             setBalance(nextBalance);
             window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", {
-              detail: { mm2Balance: nextBalance },
+              detail: { mm2Balance: Number(payload.mm2Balance), cryptoBalance: Number(payload.cryptoBalance) },
             }));
           }
           if (Number(payload.jackpotPayout || 0) > 0) {
@@ -640,7 +641,7 @@ export default function Roulette() {
       if (socket) socket.close();
       socketRef.current = null;
     };
-  }, [showMessage]);
+  }, [showMessage, balanceType]);
 
   const placeBet = useCallback((colorId) => {
     const socket = socketRef.current;
@@ -656,8 +657,8 @@ export default function Roulette() {
       showMessage("Enter a bet amount", "error");
       return;
     }
-    socket.send(JSON.stringify({ type: "roulette_bet", color: colorId, amount: betAmount }));
-  }, [phase, betAmount, showMessage]);
+    socket.send(JSON.stringify({ type: "roulette_bet", color: colorId, amount: betAmount, balanceType }));
+  }, [phase, betAmount, showMessage, balanceType]);
 
   const last100Counts = useMemo(() => {
     const counts = {};

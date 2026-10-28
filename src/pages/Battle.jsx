@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function Icon({ children, className = "size-5", viewBox = "0 0 24 24", ...props }) {
   return <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox} className={className} aria-hidden="true" {...props}>{children}</svg>;
@@ -65,14 +65,14 @@ function HeaderModeIcon({ type, color }) {
   return <Icon fill={gradient ? "none" : undefined} className="size-5 transition-colors duration-200 filter-[url(#battle-count-inset-shadow)]" viewBox={gradient ? "0 0 15 18" : "0 0 24 24"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" style={{ color, ...(gradient ? { "--svg-gradient-from": "#E650FF", "--svg-gradient-to": "#C750FF" } : {}) }}>{gradient && <defs><linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--svg-gradient-from)" /><stop offset="100%" stopColor="var(--svg-gradient-to)" /></linearGradient></defs>}<path fill={gradient ? `url(#${gradientId})` : "currentColor"} d={paths[type]} /></Icon>;
 }
 
-function RaisedButton({ children, color = "primary", className = "" }) {
+function RaisedButton({ children, color = "primary", className = "", disabled = false, ...props }) {
   const colors = {
     primary: { face: "#F3B239", shadow: "#D38502", text: "#3A3869" },
     neutral: { face: "#57689A", shadow: "#223364", text: "#FFFFFF" },
     error: { face: "#FC5C5B", shadow: "#7D2828", text: "#FFFFFF" },
   };
   const setup = colors[color] || colors.primary;
-  return <button type="button" className={`relative h-9.5 cursor-pointer outline-none flex select-none group/button ${className}`}><span className="absolute inset-x-0 top-0.75 bottom-0 rounded-lg" style={{ backgroundColor: setup.shadow }} /><span className="relative h-[calc(100%-3px)] rounded-lg px-4 py-2 flex items-center justify-center font-medium transition-transform duration-125 group-hover/button:-translate-y-0.5 group-active/button:translate-y-0" style={{ backgroundColor: setup.face, color: setup.text, filter: `drop-shadow(0 2px 0 ${setup.shadow})` }}>{children}</span></button>;
+  return <button type="button" disabled={disabled} {...props} className={`relative h-9.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-55 outline-none flex select-none group/button ${className}`}><span className="absolute inset-x-0 top-0.75 bottom-0 rounded-lg" style={{ backgroundColor: setup.shadow }} /><span className="relative h-[calc(100%-3px)] rounded-lg px-4 py-2 flex items-center justify-center font-medium transition-transform duration-125 group-hover/button:-translate-y-0.5 group-disabled/button:translate-y-0 group-active/button:translate-y-0" style={{ backgroundColor: setup.face, color: setup.text, filter: `drop-shadow(0 2px 0 ${setup.shadow})` }}>{children}</span></button>;
 }
 
 function BattleLayout({ battle }) {
@@ -105,7 +105,7 @@ function BattleHeader({ battle, rounds, muted, onMutedChange, onFairness }) {
   return <div className="flex flex-col gap-5 px-4 md:px-0"><div className="flex flex-col md:flex-row md:items-center md:justify-between relative gap-2 md:gap-0"><div className="hidden md:flex md:flex-1 md:my-auto"><a href="/games/battles" className="text-accent hover:text-accent-light text-sm flex items-center font-medium transition-colors cursor-pointer"><ArrowLeftIcon /> BACK TO BATTLES</a></div><div className="flex flex-col gap-1 items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-auto"><BattleLayout battle={battle} /><div className="flex items-center gap-2.5"><p className="font-medium">{currentCase?.name || `Battle #${battle.number}`}</p><span className="size-1 rounded-full bg-white" /><span className="flex items-center gap-1"><img src="/coin.webp" alt="" className="size-4.5" /><span className="tabular-nums font-semibold">{Math.round(currentCase?.price || 0).toLocaleString("en-US")}</span></span></div></div><div className="flex items-center justify-center gap-2 md:shrink-0 md:ml-3"><a href="/games/battles" aria-label="Back to battles" className="md:hidden text-accent hover:text-accent-light flex items-center justify-center bg-[#202D57] hover:bg-[#2D3D73] rounded-lg size-10 transition-colors"><Icon className="size-4.5" fill="none" stroke="currentColor" strokeWidth="3.5"><path d="m12 19-7-7 7-7m7 7H5" /></Icon></a><button type="button" aria-label={muted ? "Unmute battle" : "Mute battle"} onClick={() => onMutedChange(!muted)} className="text-accent size-10 flex items-center justify-center rounded-lg bg-[#202D57] hover:bg-[#2D3D73] transition-colors cursor-pointer"><SoundIcon muted={muted} /></button><button type="button" onClick={copyLink} className="text-accent bg-[#202D57] hover:bg-[#2D3D73] rounded-lg h-10 px-3 text-sm font-medium flex items-center justify-center transition-colors cursor-pointer"><ShareIcon />SHARE</button><button type="button" onClick={onFairness} className="text-accent bg-[#202D57] hover:bg-[#2D3D73] rounded-lg h-10 px-3 text-sm font-medium flex items-center justify-center transition-colors cursor-pointer"><FairnessIcon />FAIRNESS</button></div></div><div className="h-11 flex items-center justify-between relative"><div className="flex flex-col"><p className="text-accent text-sm font-medium">BATTLE PRICE</p><div className="flex items-center gap-1.5"><img src="/coin.webp" alt="" className="bg-cover bg-center size-4.5 -translate-y-[0.5px]" /><span className="font-semibold tabular-nums">{Math.round(battle.cost).toLocaleString("en-US")}</span>{discount > 0 && <span className="text-accent/80 line-through font-semibold tabular-nums">{Math.round(battle.totalCost).toLocaleString("en-US")}</span>}</div></div><RoundRail battle={battle} rounds={rounds} /><div className="flex items-center gap-3.5"><div className="flex flex-col"><p className="text-accent text-sm font-medium">ROUNDS</p><p className="font-semibold text-right tabular-nums">{currentRound}/{battle.rounds}</p></div>{(battle.modes.crazy || battle.modes.jackpot || battle.modes.fastSpin) && <><span className="w-0.5 h-8 rounded-full bg-accent/20" /><div className="flex gap-1.5">{battle.modes.crazy && <ModeBadge type="crazy" />}{battle.modes.jackpot && <ModeBadge type="jackpot" />}{battle.modes.fastSpin && <ModeBadge type="fast" />}</div></>}</div></div></div>;
 }
 
-function BattleArena({ battle, currentUserUuid }) {
+function LegacyBattleArena({ battle, currentUserUuid }) {
   const playerBySlot = useMemo(() => new Map((battle.players || []).map((player, index) => [Number.isInteger(player.slot) ? player.slot : index, player])), [battle.players]);
   const isCreator = currentUserUuid && currentUserUuid === battle.creator.uuid;
   const isParticipant = currentUserUuid && battle.players.some((player) => player.uuid === currentUserUuid);
@@ -116,6 +116,52 @@ function BattleArena({ battle, currentUserUuid }) {
   const arenaRows = slots.length > 4 ? Math.ceil(slots.length / 2) : 1;
   const arenaStyle = { gridTemplateColumns: `repeat(${arenaColumns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${arenaRows}, minmax(0, 1fr))` };
   return <div className="battle-detail-spinner relative md:px-3 py-3 bg-[#243157] md:rounded-2xl"><div className="battle-detail-spinner-inner bg-[#1B2540] relative md:rounded-[10px] min-h-100 overflow-hidden"><div className="team-slots absolute inset-0 grid" style={arenaStyle}>{slots.map(({ slot: slotIndex, teamIndex }, index) => { const player = playerBySlot.get(slotIndex); const placement = isThreeVsThree ? { gridColumn: Math.floor(index / 3) + 1, gridRow: (index % 3) + 1 } : undefined; return <div key={slotIndex} data-slot={slotIndex + 1} className={`slot text-center relative min-w-0 min-h-0${battle.playerLayout[teamIndex] > 1 ? ` team--${teamIndex}` : ""}`} style={placement}><div className="slot-inner flex items-center justify-center absolute size-full left-0 top-0"><div className="relative w-max"><div className="flex flex-col items-center justify-center absolute left-1/2 top-1/2 -translate-1/2 w-max">{player ? <><span className="bg-[#5CDF9A] rounded-full size-25 absolute top-1/2 left-1/2 -translate-1/2 blur-3xl opacity-30 pointer-events-none" /><h4 className="text-[#5CDF9A] font-semibold text-xl !leading-none relative">READY</h4><h5 className="font-medium text-sm relative">TO BATTLE</h5><CheckIcon />{isCreator && player.uuid === battle.creator.uuid && <RaisedButton color="error" className="mt-5">Cancel Battle</RaisedButton>}</> : <><span className="bg-primary rounded-full size-25 absolute top-1/2 left-1/2 -translate-1/2 blur-3xl opacity-30 pointer-events-none" /><h4 className="text-primary font-semibold text-xl !leading-none relative">WAITING</h4><h5 className="font-medium text-sm relative">FOR PLAYER</h5><AddPlayerIcon /><div>{!isParticipant && <RaisedButton>Join Battle</RaisedButton>}{isCreator && <RaisedButton>Call Bot</RaisedButton>}</div></>}</div></div></div></div>; })}</div></div></div>;
+}
+
+function BattleArenaFlow({ battle, currentUserUuid, loadingSlot, loadingAction, actionError, onAction }) {
+  const playerBySlot = useMemo(() => new Map((battle.players || []).map((player, index) => [Number.isInteger(player.slot) ? player.slot : index, player])), [battle.players]);
+  const isCreator = currentUserUuid && currentUserUuid === battle.creator.uuid;
+  const isParticipant = currentUserUuid && battle.players.some((player) => player.uuid === currentUserUuid);
+  let nextSlot = 0;
+  const slots = battle.playerLayout.flatMap((teamSize, teamIndex) => Array.from({ length: teamSize }, () => ({ slot: nextSlot++, teamIndex })));
+  const isThreeVsThree = slots.length === 6 && battle.playerLayout.length === 2 && battle.playerLayout.every((teamSize) => teamSize === 3);
+  const rollingAt = battle.rollingAt ? new Date(battle.rollingAt).getTime() : 0;
+  const countdown = Math.max(0, Math.ceil((rollingAt - Date.now()) / 1000));
+  const roundResult = battle.results?.[Math.max(0, battle.currentRound - 1)];
+  const winners = (battle.players || []).filter((player) => player.winner);
+  const totalWon = winners.reduce((sum, player) => sum + (Number(player.payout) || 0), 0);
+  const slotClass = (teamIndex) => `${battle.playerLayout[teamIndex] > 1 ? ` team--${teamIndex}` : ""}${slots.length > 4 ? isThreeVsThree ? " basis-1/3 max-w-1/3" : " basis-1/2 max-w-1/2" : " grow"}`;
+  const slotShell = (content) => <div className={`team-slots relative h-full flex flex-wrap justify-center items-center${isThreeVsThree ? " flex-col" : ""}`}>{slots.map(({ slot, teamIndex }) => <div key={slot} data-slot={slot + 1} className={`slot text-center relative min-w-0 min-h-0${slotClass(teamIndex)}`}><div className="slot-inner flex items-center justify-center absolute size-full left-0 top-0">{content(slot, playerBySlot.get(slot))}</div></div>)}</div>;
+
+  let content;
+  if (battle.status === "complete") {
+    const winnerNames = winners.length === battle.maxPlayers ? "ALL PLAYERS" : winners.map((player) => player.username).join(" & ") || "BATTLE";
+    const jackpotTotal = battle.players.reduce((sum, player) => sum + player.items.reduce((itemSum, item) => itemSum + Number(item.price || 0), 0), 0);
+    const chance = winners[0] && jackpotTotal ? (winners[0].items.reduce((sum, item) => sum + Number(item.price || 0), 0) / jackpotTotal) * 100 : 0;
+    const recreateQuery = new URLSearchParams({ recreate: String(battle.number), ...(battle.accessKey ? { key: battle.accessKey } : {}) });
+    content = <div className="battle-winners-overlay absolute inset-0 flex items-center justify-center flex-col rounded-[10px] overflow-hidden"><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,rgba(92,223,154,.34),transparent_55%)]" /><video src="/wildspin.webm" autoPlay loop muted playsInline className="absolute size-50 -bottom-24 left-2 -rotate-10 opacity-80" /><video src="/wildspin.webm" autoPlay loop muted playsInline className="absolute size-94 -bottom-40 -left-15 opacity-[.03]" /><video src="/wildspin.webm" autoPlay loop muted playsInline className="absolute size-50 -bottom-24 right-2 rotate-10 -scale-x-100 opacity-80" /><video src="/wildspin.webm" autoPlay loop muted playsInline className="absolute size-94 -bottom-40 -right-15 opacity-[.03] -scale-x-100" /><div className="relative flex flex-col items-center"><h3 className="font-semibold text-2xl"><span className="text-[#5CDF9A]">{winnerNames}</span><span className="ml-2">WON</span></h3><h2 className="flex items-center text-5xl font-bold mt-5"><img src="/coin.webp" className="size-11 mr-3" alt="" />{Math.round(totalWon).toLocaleString("en-US")}</h2>{battle.modes.jackpot && <h4 className="mt-3 text-sm font-semibold text-accent">WITH A CHANCE OF: <span className="text-white">{chance.toFixed(2)}%</span></h4>}<a href={`/games/battles/create?${recreateQuery}`} className="mt-7"><RaisedButton>RECREATE BATTLE <img src="/coin.webp" className="size-4.5 mx-1" alt="" />{Math.round(battle.cost).toLocaleString("en-US")}</RaisedButton></a></div></div>;
+  } else if (battle.status === "in_progress" && countdown > 0) {
+    content = <div className="flex flex-col items-center justify-center relative h-full"><div className="bg-primary rounded-full w-96 h-24 absolute top-1/2 left-1/2 -translate-1/2 blur-3xl opacity-40" /><p className="text-white/80 font-semibold text-xl relative">STARTING IN</p><p className="bg-linear-to-r from-primary to-[#FFC96D] text-transparent bg-clip-text tabular-nums font-extrabold text-[108px] leading-none relative mt-2 [text-shadow:0_12px_0_rgba(243,178,57,0.19)]">0{countdown}</p><div className="bg-[#243157] px-4.5 py-2.5 rounded-t-xl font-semibold absolute bottom-0 left-1/2 -translate-x-1/2 whitespace-nowrap">MINING BLOCK {battle.fairness?.eosBlock ? <span className="text-accent">- EOS BLOCK : #{battle.fairness.eosBlock}</span> : null}</div></div>;
+  } else if (battle.status === "in_progress" && battle.phase === "tally") {
+    content = slotShell((slot, player) => {
+      const total = player?.items?.reduce((sum, item) => sum + Number(item.price || 0), 0) || 0;
+      const jackpotTotal = battle.players.reduce((sum, entry) => sum + (entry.items || []).reduce((itemSum, item) => itemSum + Number(item.price || 0), 0), 0);
+      const shown = battle.modes.jackpot ? `${jackpotTotal ? ((total / jackpotTotal) * 100).toFixed(2) : "0.00"}%` : Math.round(total).toLocaleString("en-US");
+      return <div className="battle-tally flex flex-col items-center"><p className="text-accent text-sm font-semibold">{player?.username || `PLAYER ${slot + 1}`}</p><p className="mt-2 flex items-center text-2xl font-semibold">{!battle.modes.jackpot && <img src="/coin.webp" className="size-6 mr-2" alt="" />}{shown}</p></div>;
+    });
+  } else if (battle.status === "in_progress") {
+    const horizontal = slots.length > 4;
+    content = slotShell((slot, player) => {
+      const drop = roundResult?.drops?.find((entry) => Number(entry.slot) === slot);
+      const reel = Array.isArray(drop?.reel) && drop.reel.length ? drop.reel : drop ? [drop] : [];
+      const end = horizontal ? `${Math.max(0, reel.length - 1) * -92}px` : `${Math.max(0, reel.length - 1) * -112 + 136}px`;
+      return <div key={`${battle.currentRound}-${slot}`} className={`battle-live-reel ${horizontal ? "is-horizontal" : "is-vertical"}`} style={{ "--battle-reel-end": end, "--battle-reel-duration": battle.modes.fastSpin ? "1.25s" : "4.65s" }}><div className="battle-live-reel-track">{reel.map((item, index) => <div key={`${index}-${item.name}`} className={`battle-live-reel-item${index === reel.length - 1 ? " is-result" : ""}`}><span className="absolute size-24 rounded-full blur-3xl opacity-20 bg-primary" /><img src={item.imageUrl} alt={item.name} className="object-contain relative drop-shadow-[0_14px_20px_rgba(0,0,0,.45)]" /><div className="battle-live-reel-caption relative"><p className="font-semibold truncate">{item.name}</p><span className="flex items-center justify-center gap-1 text-sm"><img src="/coin.webp" className="size-4" alt="" />{Math.round(Number(item.price) || 0).toLocaleString("en-US")}</span></div></div>)}</div>{player && <p className="battle-live-player text-xs text-accent truncate">{player.username}</p>}</div>;
+    });
+  } else {
+    const canCancel = Date.now() - new Date(battle.createdAt).getTime() >= 300_000;
+    content = slotShell((slot, player) => <div className="relative w-max"><div className="flex flex-col items-center justify-center absolute left-1/2 top-1/2 -translate-1/2 w-max">{player ? <><span className="bg-[#5CDF9A] rounded-full size-25 absolute top-1/2 left-1/2 -translate-1/2 blur-3xl opacity-30 pointer-events-none" /><h4 className="text-[#5CDF9A] font-semibold text-xl !leading-none relative">READY</h4><h5 className="font-medium text-sm relative">TO BATTLE</h5><CheckIcon />{isCreator && player.uuid === battle.creator.uuid && <RaisedButton color="error" disabled={!canCancel || loadingAction === "cancel"} onClick={() => onAction("cancel", slot)} className="mt-5">{canCancel ? "Cancel Battle" : "Cancel in 5m"}</RaisedButton>}</> : <><span className="bg-primary rounded-full size-25 absolute top-1/2 left-1/2 -translate-1/2 blur-3xl opacity-30 pointer-events-none" /><h4 className="text-primary font-semibold text-xl !leading-none relative">WAITING</h4><h5 className="font-medium text-sm relative">FOR PLAYER</h5><AddPlayerIcon /><div className="flex gap-2">{!isParticipant && <RaisedButton disabled={loadingSlot !== null} onClick={() => onAction("join", slot)}>{loadingSlot === slot && loadingAction === "join" ? "Joining..." : "Join Battle"}</RaisedButton>}{isCreator && <RaisedButton disabled={loadingSlot !== null} onClick={() => onAction("bot", slot)}>{loadingSlot === slot && loadingAction === "bot" ? "Calling..." : "Call Bot"}</RaisedButton>}</div></>}</div></div>);
+  }
+  return <div className="battle-detail-spinner relative md:px-3 py-3 bg-[#243157] md:rounded-2xl"><div className="battle-detail-spinner-inner bg-[#1B2540] relative md:rounded-[10px] min-h-100 overflow-hidden">{content}{actionError && <p className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 rounded-lg bg-[#7D2828] px-3 py-1.5 text-sm font-medium">{actionError}</p>}</div></div>;
 }
 
 const PLAYER_TEAM_COLORS = ["255, 107, 107", "78, 205, 196", "69, 183, 209", "150, 206, 180"];
@@ -143,7 +189,7 @@ function PlayerAvatar({ player }) {
 }
 
 function playerDrops(battle, player, slotIndex) {
-  if (Array.isArray(player?.items)) return player.items;
+  if (Array.isArray(player?.items)) return battle.status === "in_progress" ? player.items.filter((item) => Number(item.round) <= battle.currentRound) : player.items;
   return (battle.results || []).flatMap((result, roundIndex) => {
     const drops = Array.isArray(result) ? result : Array.isArray(result?.drops) ? result.drops : Array.isArray(result?.results) ? result.results : [result];
     return drops.filter((drop) => Number(drop?.slot ?? drop?.playerSlot ?? drop?.player_slot) === slotIndex).map((drop) => ({ ...drop, round: drop?.round ?? drop?.roundIndex ?? roundIndex + 1 }));
@@ -211,11 +257,11 @@ function PlayerColumns({ battle }) {
   return <><div className="battle-detail-player-grid grid gap-5" style={gridStyle}>{indexes.map((index) => { const player = playerBySlot.get(index); const team = slotTeams[index] || 0; const winner = isWinner(index, player); const fallbackColor = teamMode ? PLAYER_TEAM_COLORS[team % PLAYER_TEAM_COLORS.length] : PLAYER_SLOT_COLORS[index % PLAYER_SLOT_COLORS.length]; const baseColor = colorChannels(player?.color, fallbackColor); const color = battle.status === "complete" ? (winner ? "91, 255, 168" : "252, 92, 91") : baseColor; const explicitPayout = Number(player?.payout ?? player?.winnings); const value = battle.status === "complete" ? (Number.isFinite(explicitPayout) ? explicitPayout : winner ? dropSets[index].total : 0) : dropSets[index].total; const expanded = expandedSlots.has(index); return <div key={index} className={`player-card-ctn${teamMode ? ` team--${team}` : ""}`}><div className={`player-header text-center flex flex-col rounded-[10px] shadow-[0px_3px_0px_#18223F]${teamMode && team > 0 ? ` team--${team}` : ""}${winner ? " is-winner" : ""}${battle.modes.jackpot ? " is-jackpot" : ""}`} style={{ "--color": color, background: "radial-gradient(80% 100% at 50% 100%, rgba(var(--color), 0.25) 0%, rgba(36, 49, 87, 0) 100%), #2F3E6B" }}>{player ? <div className="grow flex justify-center items-center h-14 px-2.5"><PlayerAvatar player={player} /><PlayerTotal battle={battle} player={player} color={color} value={value} winner={winner} className={sixPlayer ? "min-[960px]:hidden" : ""} /><button type="button" aria-label={`${expanded ? "Hide" : "Show"} ${player.username}'s items`} aria-expanded={expanded} onClick={() => toggleSlot(index)} className="min-[1024px]:hidden ml-2 p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"><PlayerChevron expanded={expanded} /></button></div> : <div className="text-center grow flex justify-center items-center h-14"><span className="text-accent font-medium text-[15px]">WAITING...</span></div>}{sixPlayer && <div className="hidden min-[960px]:flex justify-center items-center grow-0 rounded-b-[10px] h-11.5 bg-black/20"><PlayerTotal battle={battle} player={player} color={color} value={value} winner={winner} /></div>}</div>{player && expanded && <div className="min-[1024px]:hidden inventory-ctn mt-3"><div className="player-inventory grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2.5">{renderRounds(index, true)}</div></div>}</div>; })}</div><div className="hidden min-[1024px]:block"><div className="inventory-ctn max-h-125 overflow-y-auto scrollbar-hide"><div className="battle-detail-player-grid grid gap-5" style={gridStyle}>{indexes.map((index) => <div key={index} className="overflow-hidden player-inventory grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">{renderRounds(index)}</div>)}</div></div></div></>;
 }
 
-function FairnessModal({ onClose }) {
+function LegacyFairnessModal({ onClose }) {
   return <div className="fixed inset-0 z-70 bg-black/60 flex items-center justify-center p-4" onMouseDown={onClose}><div className="w-full max-w-lg rounded-2xl bg-[#202D57] p-5 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><h2 className="font-bold text-xl">BATTLE FAIRNESS</h2><button type="button" onClick={onClose} className="text-accent text-2xl cursor-pointer">×</button></div><p className="text-sm text-accent mt-3">Battle results use the server seed and future EOS block data so every roll can be independently verified after the battle completes.</p><a href="/fairness" className="mt-4 inline-flex h-10 px-3 bg-[#2E3C68] rounded-lg text-accent text-sm font-semibold items-center hover:bg-[#364879] transition-colors">LEARN MORE</a></div></div>;
 }
 
-export default function Battle({ id }) {
+function LegacyBattle({ id }) {
   const [battle, setBattle] = useState(null);
   const [currentUserUuid, setCurrentUserUuid] = useState(null);
   const [muted, setMuted] = useState(false);
@@ -237,4 +283,104 @@ export default function Battle({ id }) {
   const rounds = useMemo(() => battle ? battle.cases.flatMap((caseItem) => Array.from({ length: Math.max(1, caseItem.quantity) }, () => caseItem)).slice(0, battle.rounds) : [], [battle]);
 
   return <div className="site-content"><div className="max-w-[1660px] mx-auto px-4 md:px-12 min-h-[calc(100dvh-var(--layout-top))]"><div className="page-content battle-page py-6 flex flex-col gap-5">{error && <p role="alert" className="text-error font-medium">{error}</p>}{battle && <><BattleHeader battle={battle} rounds={rounds} muted={muted} onMutedChange={setMuted} onFairness={() => setFairnessOpen(true)} /><div className="relative px-0 battle-spinner-ctn"><BattleArena battle={battle} currentUserUuid={currentUserUuid} /></div><div className="flex flex-col gap-4 px-4 md:px-0"><PlayerColumns battle={battle} /></div></>}</div></div>{fairnessOpen && <FairnessModal onClose={() => setFairnessOpen(false)} />}</div>;
+}
+
+function FairnessModal({ battle, onClose }) {
+  const rows = [
+    ["HASHED SEED", battle.fairness?.serverSeedHash || "Waiting for seed commitment..."],
+    ["SERVER SEED", battle.fairness?.serverSeed || "Revealed after the battle is complete"],
+    ["EOS BLOCK", battle.fairness?.eosBlock ? `#${battle.fairness.eosBlock}` : "Selected when the battle starts"],
+    ["EOS HASH", battle.fairness?.eosHash || "Revealed after the battle is complete"],
+  ];
+  return <div className="fixed inset-0 z-70 bg-black/60 flex items-center justify-center p-4" onMouseDown={onClose}><div className="w-full max-w-xl rounded-2xl bg-[#202D57] p-5 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}><div className="flex items-center justify-between"><h2 className="font-bold text-xl">BATTLE FAIRNESS</h2><button type="button" aria-label="Close fairness" onClick={onClose} className="text-accent text-2xl cursor-pointer">&times;</button></div><p className="text-sm text-accent mt-3">The committed seed and future EOS block determine every item before the animation begins.</p><div className="mt-4 flex flex-col gap-2.5">{rows.map(([label, value]) => <div key={label} className="rounded-xl bg-[#182341] px-3.5 py-3"><p className="text-xs font-semibold text-accent">{label}</p><p className="mt-1 break-all font-mono text-xs text-white/90">{value}</p></div>)}</div><a href="/fairness" className="mt-4 inline-flex h-10 px-3 bg-[#2E3C68] rounded-lg text-accent text-sm font-semibold items-center hover:bg-[#364879] transition-colors">LEARN MORE</a></div></div>;
+}
+
+export default function Battle({ id, balanceType = "mm2" }) {
+  const [battle, setBattle] = useState(null);
+  const [currentUserUuid, setCurrentUserUuid] = useState(null);
+  const [muted, setMuted] = useState(false);
+  const [fairnessOpen, setFairnessOpen] = useState(false);
+  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [loadingSlot, setLoadingSlot] = useState(null);
+  const [loadingAction, setLoadingAction] = useState("");
+  const previousState = useRef({ status: "", phase: "", round: 0, players: 0 });
+  const accessKey = useMemo(() => new URLSearchParams(window.location.search).get("key") || "", [id]);
+
+  const loadBattle = useCallback(async (signal) => {
+    const response = await fetch(`/api/battles/${id}${accessKey ? `?key=${encodeURIComponent(accessKey)}` : ""}`, { signal, credentials: "include" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.battle) throw new Error(data.error || "Could not load this battle.");
+    setBattle(data.battle);
+    setError("");
+    return data.battle;
+  }, [id, accessKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([
+      loadBattle(controller.signal),
+      fetch("/api/session", { signal: controller.signal, credentials: "include" }).then((response) => response.ok ? response.json() : null).catch(() => null),
+    ]).then(([, session]) => setCurrentUserUuid(session?.user?.uuid || null)).catch((requestError) => { if (requestError.name !== "AbortError") setError(requestError.message); });
+    return () => controller.abort();
+  }, [loadBattle]);
+
+  useEffect(() => {
+    if (!battle || battle.status === "complete" || battle.status === "cancelled") return undefined;
+    const interval = window.setInterval(() => { loadBattle().catch(() => {}); }, battle.status === "in_progress" ? 700 : 2_000);
+    return () => window.clearInterval(interval);
+  }, [battle?.status, loadBattle]);
+
+  useEffect(() => {
+    const refresh = (event) => {
+      if (event.detail?.table !== "mm2wild_battles") return;
+      window.clearTimeout(refresh.timer);
+      refresh.timer = window.setTimeout(() => loadBattle().catch(() => {}), 80);
+    };
+    window.addEventListener("mm2wild:supabase-change", refresh);
+    return () => { window.clearTimeout(refresh.timer); window.removeEventListener("mm2wild:supabase-change", refresh); };
+  }, [loadBattle]);
+
+  useEffect(() => {
+    if (!battle) return;
+    document.title = `Battle #${battle.number} :: MM2Wild`;
+    const previous = previousState.current;
+    let source = "";
+    if (previous.players && battle.players.length > previous.players) source = `/sounds/battles/battle-join-${Math.min(4, battle.players.length)}.mp3`;
+    if (battle.status === "in_progress" && previous.status !== "in_progress") source = "/sounds/battles/countdown.mp3";
+    if (battle.status === "in_progress" && battle.currentRound > previous.round && battle.currentRound > 0) source = battle.currentRound === battle.rounds ? "/sounds/battles/pull-big-1.mp3" : "/sounds/battles/battle-land-1.mp3";
+    if (battle.phase === "tally" && previous.phase !== "tally") source = battle.modes.jackpot ? "/sounds/battles/jackpot-spin.mp3" : "/sounds/battles/total-glow.mp3";
+    if (battle.status === "complete" && previous.status && previous.status !== "complete") source = "/sounds/battles/tally-winner.mp3";
+    previousState.current = { status: battle.status, phase: battle.phase, round: battle.currentRound, players: battle.players.length };
+    if (!muted && source) { const audio = new Audio(source); audio.volume = 0.55; audio.play().catch(() => {}); }
+  }, [battle?.status, battle?.phase, battle?.currentRound, battle?.players?.length, muted]);
+
+  const runAction = useCallback(async (action, slot) => {
+    if (loadingAction) return;
+    setActionError("");
+    setLoadingAction(action);
+    setLoadingSlot(slot ?? null);
+    try {
+      const response = await fetch(`/api/battles/${id}/${action}`, { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ slot, key: accessKey, balanceType }) });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) { window.dispatchEvent(new CustomEvent("mm2wild:open-sign-in")); return; }
+      if (!response.ok || !data.battle) throw new Error(data.error || "The battle action could not be completed.");
+      window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: data.balanceType === "crypto" ? { cryptoBalance: data.balance } : { mm2Balance: data.balance } }));
+      if (action === "cancel") {
+        window.history.pushState({}, "", "/games/battles");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        return;
+      }
+      setBattle(data.battle);
+    } catch (actionFailure) {
+      setActionError(actionFailure.message || "The battle action could not be completed.");
+    } finally {
+      setLoadingAction("");
+      setLoadingSlot(null);
+    }
+  }, [accessKey, id, loadingAction]);
+
+  const rounds = useMemo(() => battle ? battle.cases.flatMap((caseItem) => Array.from({ length: Math.max(1, caseItem.quantity) }, () => caseItem)).slice(0, battle.rounds) : [], [battle]);
+
+  return <div className="site-content"><div className="max-w-[1660px] mx-auto px-4 md:px-12 min-h-[calc(100dvh-var(--layout-top))]"><div className="page-content battle-page py-6 flex flex-col gap-5">{error && <p role="alert" className="text-error font-medium">{error}</p>}{battle && <><BattleHeader battle={battle} rounds={rounds} muted={muted} onMutedChange={setMuted} onFairness={() => setFairnessOpen(true)} /><div className="relative px-0 battle-spinner-ctn"><BattleArenaFlow battle={battle} currentUserUuid={currentUserUuid} loadingSlot={loadingSlot} loadingAction={loadingAction} actionError={actionError} onAction={runAction} /></div><div className="flex flex-col gap-4 px-4 md:px-0"><PlayerColumns battle={battle} /></div></>}</div></div>{fairnessOpen && battle && <FairnessModal battle={battle} onClose={() => setFairnessOpen(false)} />}</div>;
 }

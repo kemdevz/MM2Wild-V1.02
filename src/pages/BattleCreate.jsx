@@ -286,7 +286,7 @@ function CostBox({ label, value, green, right }) {
   return <div className={`flex flex-col bg-[#3E4E78] p-2.5 rounded-[11px] ${right ? "items-end" : ""}`}><p className="text-[13px] text-accent font-medium">{label}</p><CoinValue value={value} size="size-5" className={`font-semibold ${green ? "text-[#5CDF9A]" : ""}`} /></div>;
 }
 
-export default function BattleCreate() {
+export default function BattleCreate({ balanceType = "mm2" }) {
   const [cases, setCases] = useState([]);
   const [selected, setSelected] = useState(() => new Map());
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -308,7 +308,37 @@ export default function BattleCreate() {
   useEffect(() => {
     document.title = "Create Battle - Case Opening Battles";
     const controller = new AbortController();
-    fetch("/api/cases", { signal: controller.signal }).then((response) => response.json()).then((payload) => setCases(Array.isArray(payload?.cases) ? payload.cases : [])).catch(() => {});
+    const query = new URLSearchParams(window.location.search);
+    const recreate = query.get("recreate");
+    const key = query.get("key");
+    Promise.all([
+      fetch("/api/cases", { signal: controller.signal }).then((response) => response.json()),
+      recreate ? fetch(`/api/battles/${encodeURIComponent(recreate)}${key ? `?key=${encodeURIComponent(key)}` : ""}`, { signal: controller.signal, credentials: "include" }).then((response) => response.ok ? response.json() : null) : null,
+    ]).then(([casePayload, battlePayload]) => {
+      const availableCases = Array.isArray(casePayload?.cases) ? casePayload.cases : [];
+      setCases(availableCases);
+      const battle = battlePayload?.battle;
+      if (!battle) return;
+      const byId = new Map(availableCases.map((caseItem) => [Number(caseItem.id), caseItem]));
+      const recreated = new Map();
+      for (const source of battle.cases || []) {
+        const caseItem = byId.get(Number(source.id)) || availableCases.find((entry) => entry.slug === source.slug);
+        if (caseItem) recreated.set(caseItem.slug, { caseItem, quantity: Math.max(1, Number(source.quantity) || 1) });
+      }
+      setSelected(recreated);
+      const layoutIndex = PLAYER_LAYOUTS.findIndex((layout) => layout.join(",") === battle.playerLayout.join(","));
+      if (layoutIndex >= 0) setPlayerLayout(layoutIndex);
+      setShare(Boolean(battle.modes.share));
+      setCrazy(Boolean(battle.modes.crazy));
+      setJackpot(Boolean(battle.modes.jackpot));
+      setPartial(Boolean(battle.modes.partial));
+      setBorrow(Boolean(battle.modes.borrow));
+      setPrivateBattle(Boolean(battle.modes.private));
+      setFastSpin(Boolean(battle.modes.fastSpin));
+      setFundingPercent(Number(battle.fundingPercent) || 50);
+      setBorrowPercent(Number(battle.borrowPercent) || 20);
+      setMinimumLevel(Number(battle.minimumLevel) > 1);
+    }).catch(() => {});
     return () => controller.abort();
   }, []);
   useEffect(() => {
@@ -351,6 +381,7 @@ export default function BattleCreate() {
           playerLayout: PLAYER_LAYOUTS[playerLayout],
           share, crazy, jackpot, partial, borrow, private: privateBattle, fastSpin,
           fundingPercent, borrowPercent, minimumLevel,
+          balanceType,
         }),
       });
       const data = await response.json().catch(() => ({}));
@@ -359,7 +390,7 @@ export default function BattleCreate() {
         return;
       }
       if (!response.ok || !data.battle) throw new Error(data.error || "The battle could not be created.");
-      window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: { mm2Balance: data.balance } }));
+      window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: data.balanceType === "crypto" ? { cryptoBalance: data.balance } : { mm2Balance: data.balance } }));
       const key = data.battle.accessKey ? `?key=${encodeURIComponent(data.battle.accessKey)}` : "";
       window.history.pushState({}, "", `/games/battles/${data.battle.number}${key}`);
       window.dispatchEvent(new PopStateEvent("popstate"));

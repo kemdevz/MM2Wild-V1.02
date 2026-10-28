@@ -1307,7 +1307,7 @@ function CoinflipContent({
   );
 }
 
-export default function Coinflip() {
+export default function Coinflip({ balanceType = "mm2" }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isPriceAscending, setIsPriceAscending] = useState(false);
   const [createModal, setCreateModal] = useState(null);
@@ -1393,15 +1393,16 @@ export default function Coinflip() {
     setBusy(true); setError("");
     try {
       const payload = createModal.type === "join"
-        ? { action: "join", gameId: createModal.game.id, itemIds }
-        : { action: "create", side, itemIds };
+        ? { action: "join", gameId: createModal.game.id, itemIds, balanceType: createModal.game.balanceType || balanceType }
+        : { action: "create", side, itemIds, balanceType };
       const response = await fetch("/api/coinflip", {
         method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The coinflip could not be updated.");
-      setCurrentUser((user) => user ? { ...user, mm2_balance: Number(data.balance) } : user);
-      window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: { mm2Balance: data.balance } }));
+      const usedBalanceType = data.balanceType || payload.balanceType;
+      setCurrentUser((user) => user ? { ...user, [usedBalanceType === "crypto" ? "crypto_balance" : "mm2_balance"]: Number(data.balance) } : user);
+      window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: usedBalanceType === "crypto" ? { cryptoBalance: data.balance } : { mm2Balance: data.balance } }));
       setCreateModal(null);
       if (createModal.type === "join") startGameAnimation(data.game);
       setViewModal(data.game);
@@ -1418,12 +1419,13 @@ export default function Coinflip() {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "callBot", gameId: game.id }),
+        body: JSON.stringify({ action: "callBot", gameId: game.id, balanceType: game.balanceType || balanceType }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The bot could not join this coinflip.");
-      setCurrentUser((user) => user ? { ...user, mm2_balance: Number(data.balance) } : user);
-      window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: { mm2Balance: data.balance } }));
+      const usedBalanceType = data.balanceType || game.balanceType || balanceType;
+      setCurrentUser((user) => user ? { ...user, [usedBalanceType === "crypto" ? "crypto_balance" : "mm2_balance"]: Number(data.balance) } : user);
+      window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: usedBalanceType === "crypto" ? { cryptoBalance: data.balance } : { mm2Balance: data.balance } }));
       startGameAnimation(data.game);
       setViewModal(data.game);
       await loadGames();
@@ -1539,7 +1541,7 @@ export default function Coinflip() {
       </div>
       {error && !createModal ? <button type="button" onClick={() => setError("")} className="fixed z-[100000000] bottom-6 left-1/2 -translate-x-1/2 rounded-lg bg-[#351F35] px-4 py-3 text-[#FF9EAE] font-semibold">{error}</button> : null}
       {createModal ? (
-        <CoinflipCreateModal onClose={() => !busy && setCreateModal(null)} onSubmit={submitCoinflip} game={createModal.game} currentBalance={Number(currentUser?.mm2_balance || 0)} busy={busy} error={error} />
+        <CoinflipCreateModal onClose={() => !busy && setCreateModal(null)} onSubmit={submitCoinflip} game={createModal.game} currentBalance={Number(currentUser?.[(createModal.game?.balanceType || balanceType) === "crypto" ? "crypto_balance" : "mm2_balance"] || 0)} busy={busy} error={error} />
       ) : null}
       {viewModal ? (
         <CoinflipViewModal

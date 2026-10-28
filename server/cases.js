@@ -109,7 +109,7 @@ export async function getCase(env, slug) {
   return row ? formatCase(row, true) : null;
 }
 
-export async function openCase(env, user, slug, quantity, demo = false) {
+export async function openCase(env, user, slug, quantity, demo = false, balanceType = "mm2") {
   const count = Number(quantity);
   if (!Number.isInteger(count) || count < 1 || count > 4) {
     throw new Error("Choose between 1 and 4 cases.");
@@ -140,13 +140,14 @@ export async function openCase(env, user, slug, quantity, demo = false) {
   }
   if (!user?.uuid) throw new Error("The login session could not be found");
 
-  const opening = await rpc(env, "mm2wild_record_case_opening", {
+  const opening = await rpc(env, "mm2wild_record_case_opening_currency", {
     p_user_uuid: user.uuid,
     p_case_id: caseItem.id,
     p_quantity: count,
     p_results: results,
     p_server_seed: serverSeed,
     p_server_seed_hash: serverSeedHash,
+    p_balance_type: balanceType === "crypto" ? "crypto" : "mm2",
   });
   return {
     id: opening.id,
@@ -159,5 +160,6 @@ export async function openCase(env, user, slug, quantity, demo = false) {
     fairness: { serverSeedHash, serverSeed },
     demo: false,
     openedAt: opening.opened_at,
+    balanceType: opening.balance_type || (balanceType === "crypto" ? "crypto" : "mm2"),
   };
 }

@@ -6,7 +6,16 @@ const TURNSTILE_PRODUCTION_SITE_KEY = "0x4AAAAAACO5aJWBw_BqLmoe";
 const TURNSTILE_TEST_SITE_KEY = "1x00000000000000000000AA";
 let turnstileScriptPromise;
 
+const moderatorRank = {
+  label: "Moderator",
+  image: "/ranks/Moderator.webp",
+  color: "#55A9FF",
+  priority: 100,
+};
+
 const chatRanks = {
+  moderator: moderatorRank,
+  mod: moderatorRank,
   chillguy: { label: "Chill Guy", image: "/ranks/ChillGuy.webp", color: "#C69D72", priority: 0 },
   highroller: { label: "High Roller", image: "/ranks/Highroller.webp", color: "#5CDF9A", priority: 1 },
   lucky: { label: "Lucky", image: "/ranks/Lucky.webp", color: "#6CDE07", priority: 0 },
@@ -493,7 +502,7 @@ function ChatIcon({ className = "size-5" }) {
   );
 }
 
-function TipRainModal({ onClose, onSubmit }) {
+function TipRainModal({ balanceType, onClose, onSubmit }) {
   const [dialogState, setDialogState] = useState("open");
   const [amount, setAmount] = useState("");
   const closeTimerRef = useRef(null);
@@ -506,7 +515,7 @@ function TipRainModal({ onClose, onSubmit }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const value = parseInt(amount, 10);
+    const value = balanceType === "crypto" ? Number(amount) : parseInt(amount, 10);
     if (!value || value <= 0) return;
     onSubmit(value);
     requestClose();
@@ -573,10 +582,10 @@ function TipRainModal({ onClose, onSubmit }) {
                   id="tip-rain-amount"
                   type="text"
                   value={amount}
-                  onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ""))}
+                  onChange={(event) => setAmount(event.target.value.replace(balanceType === "crypto" ? /[^0-9.]/g : /[^0-9]/g, ""))}
                   placeholder="Enter amount..."
                   className="bg-transparent outline-none size-full font-medium peer text-[15px] placeholder:text-accent pl-2"
-                  inputMode="numeric"
+                  inputMode={balanceType === "crypto" ? "decimal" : "numeric"}
                 />
               </div>
             </div>
@@ -1057,7 +1066,7 @@ function RainPot({ onTip, onJoin, rain }) {
 }
 
 function RainEndedMessage({ rain, onProfileClick }) {
-  const pool = Math.max(0, Math.round(Number(rain.pool) || 0));
+  const pool = Math.max(0, rain.balanceType === "crypto" ? Math.round((Number(rain.pool) || 0) * 1e8) / 1e8 : Math.round(Number(rain.pool) || 0));
   const participantCount = Math.max(0, Number(rain.participantCount) || 0);
   const participants = Array.isArray(rain.participants) ? rain.participants : [];
   const baseShare = participantCount ? Math.floor(pool / participantCount) : 0;
@@ -1143,13 +1152,13 @@ function ChatMessage({
   const usernameColor = usernameRank?.color || "#FFFFFF";
   return (
     <div
-      className={`relative flex flex-col group/message hover:z-50 focus-within:z-50 ${
+      className={`relative flex w-full min-w-0 max-w-full flex-col overflow-hidden group/message hover:z-50 focus-within:z-50 ${
         animate ? "chat-message-enter" : ""
       }`}
       data-highlight="false"
     >
       {reply && <ReplyPreview reply={reply} />}
-      <div className="flex gap-1.75 relative group z-1">
+      <div className="flex w-full min-w-0 max-w-full gap-1.75 relative group z-1">
         <div
           className="size-10 rounded-[9px] cursor-pointer flex shrink-0 flex-col items-center relative bg-linear-to-b from-[#1D2A53] from-5% p-0.5"
           style={{ "--tw-gradient-to": profile.color }}
@@ -1191,8 +1200,8 @@ function ChatMessage({
               {time}
             </p>
           </div>
-          <div className="message-body p-1.75 rounded-lg bg-[#223263]">
-            <div className="text-sm font-medium text-accent [word-break:break-word]">
+          <div className="message-body min-w-0 max-w-full overflow-hidden p-1.75 rounded-lg bg-[#223263]">
+            <div className="max-w-full overflow-hidden text-sm font-medium text-accent [overflow-wrap:anywhere] [word-break:break-word]">
               <ChatMessageBody body={body} />
             </div>
           </div>
@@ -1339,12 +1348,13 @@ export default function ChatSidebar({ onInitialRenderReady, selectedBalanceType 
         type: "rain-ended",
         rainId: rainState.rainId,
         pool: rainState.pool,
+        balanceType: rainState.balanceType,
         participantCount: rainState.participantCount,
         participants: rainState.participants,
         animate: true,
       },
     ]);
-  }, [rainState.phase, rainState.rainId, rainState.pool, rainState.participantCount, rainState.participants]);
+  }, [rainState.phase, rainState.rainId, rainState.pool, rainState.balanceType, rainState.participantCount, rainState.participants]);
 
   const positionEmojiPopup = useCallback(() => {
     const anchor = chatFormRef.current;
@@ -1535,6 +1545,11 @@ export default function ChatSidebar({ onInitialRenderReady, selectedBalanceType 
         setRainState((current) =>
           current.rainId === payload.rainId ? { ...current, joined: true } : current,
         );
+      } else if (payload.type === "rain_tip_confirmed") {
+        const nextBalance = Number(payload.balance);
+        if (Number.isFinite(nextBalance)) {
+          window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: payload.balanceType === "crypto" ? { cryptoBalance: nextBalance } : { mm2Balance: nextBalance } }));
+        }
       } else if (payload.type === "chat") {
         setMessages((current) => [
           ...current,
@@ -1722,10 +1737,10 @@ export default function ChatSidebar({ onInitialRenderReady, selectedBalanceType 
             />
             <div
               ref={viewportRef}
-              className={`chat-scrollbar size-full overflow-y-auto outline-none pb-3 transition-[padding] duration-200 ${rainState.visible === false ? "pt-3" : "pt-[108px]"}`}
+              className={`chat-scrollbar size-full overflow-x-hidden overflow-y-auto outline-none pb-3 transition-[padding] duration-200 ${rainState.visible === false ? "pt-3" : "pt-[108px]"}`}
               tabIndex={0}
             >
-              <div className="flex-1 flex flex-col gap-5 px-3.5">
+              <div className="flex-1 min-w-0 max-w-full overflow-x-hidden flex flex-col gap-5 px-3.5">
                 {messages.map((entry, index) => entry.type === "rain-ended" ? (
                   <RainEndedMessage key={`rain-ended-${entry.rainId}`} rain={entry} onProfileClick={openProfile} />
                 ) : entry.type === "rain-tip" || entry.type === "user-tip" ? (
@@ -1900,11 +1915,12 @@ export default function ChatSidebar({ onInitialRenderReady, selectedBalanceType 
     {isTipRainOpen
       ? createPortal(
           <TipRainModal
+            balanceType={selectedBalanceType}
             onClose={() => setIsTipRainOpen(false)}
             onSubmit={(value) => {
               const socket = socketRef.current;
               if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ type: "rain_tip", amount: value }));
+                socket.send(JSON.stringify({ type: "rain_tip", amount: value, balanceType: selectedBalanceType }));
               }
             }}
           />,

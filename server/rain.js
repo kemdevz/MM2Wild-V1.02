@@ -14,6 +14,7 @@ function newRain(startedAt) {
     cooldownEndsAt: startedAt + RAIN_DURATION_MS + RAIN_JOIN_DURATION_MS + RAIN_COOLDOWN_DURATION_MS,
     participantIds: new Set(),
     participantProfiles: new Map(),
+    balanceType: null,
   };
 }
 
@@ -31,7 +32,7 @@ export function createSupabaseRainStore(env) {
     async loadCurrent() {
       const query = new URLSearchParams({
         status: "in.(active,joining,cooldown)",
-        select: "id,pool,status,starts_at,ends_at,join_ends_at",
+        select: "id,pool,status,starts_at,ends_at,join_ends_at,balance_type",
         order: "starts_at.desc",
         limit: "1",
       });
@@ -74,6 +75,7 @@ export function createSupabaseRainStore(env) {
           ends_at: new Date(rain.endsAt).toISOString(),
           join_ends_at: new Date(rain.joinEndsAt).toISOString(),
           updated_at: new Date().toISOString(),
+          balance_type: rain.balanceType,
         }),
       });
       if (!response.ok) throw new Error("Rain could not be saved.");
@@ -88,17 +90,19 @@ export function createSupabaseRainStore(env) {
       if (!response.ok) throw new Error("Rain could not be completed.");
     },
 
-    async updatePool(rainId, pool) {
-      const response = await request(`mm2wild_rains?id=eq.${encodeURIComponent(rainId)}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({ pool, updated_at: new Date().toISOString() }),
+    async tip(rainId, userUuid, amount, balanceType) {
+      const response = await request("rpc/mm2wild_tip_rain", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ p_rain_id: rainId, p_user_uuid: userUuid, p_amount: amount, p_balance_type: balanceType }),
       });
-      if (!response.ok) throw new Error("Rain pot could not be updated.");
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result) throw new Error(result?.message || "Rain pot could not be updated.");
+      return result;
     },
 
     async settle(rainId) {
-      const response = await request("rpc/mm2wild_settle_rain", {
+      const response = await request("rpc/mm2wild_settle_rain_currency", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ p_rain_id: rainId }),
@@ -151,6 +155,7 @@ export function createRainState({ store = null, now = () => Date.now() } = {}) {
       cooldownEndsAt: (Number.isFinite(joinEndsAt) ? joinEndsAt : now() + RAIN_DURATION_MS + RAIN_JOIN_DURATION_MS) + RAIN_COOLDOWN_DURATION_MS,
       participantIds: new Set(row.participantIds || []),
       participantProfiles: new Map((row.participants || []).map((participant) => [participant.userUuid, participant])),
+      balanceType: row.balance_type === "crypto" ? "crypto" : row.balance_type === "mm2" ? "mm2" : null,
     };
     if (row.status === "cooldown") rain.phase = "cooldown";
   }
@@ -230,6 +235,7 @@ export function createRainState({ store = null, now = () => Date.now() } = {}) {
         ...(rain.participantProfiles.get(userUuid) || {}),
       })),
       joined: Boolean(userUuid && rain.participantIds.has(userUuid)),
+      balanceType: rain.balanceType,
       remaining,
       countdown: rain.phase === "joining"
         ? "00:00"
@@ -262,21 +268,27 @@ export function createRainState({ store = null, now = () => Date.now() } = {}) {
 
     state,
 
-    async tip(amount) {
+    async tip(amount, userUuid, balanceType = "mm2") {
       await api.ready();
       updatePhase();
       if (rain.phase === "cooldown") return { ok: false, error: "This rain has ended." };
       if (rain.phase !== "active") return { ok: false, error: "This rain is already open for joining." };
-      const value = Math.max(0, Math.floor(Number(amount) || 0));
+      const type = balanceType === "crypto" ? "crypto" : "mm2";
+      const value = Math.max(0, type === "crypto" ? Math.round((Number(amount) || 0) * 1e8) / 1e8 : Math.floor(Number(amount) || 0));
       if (!value) return { ok: false, error: "Enter a valid amount." };
-      rain.pool += value;
       try {
-        if (store) await store.updatePool(rain.id, rain.pool);
-      } catch {
-        rain.pool -= value;
-        return { ok: false, error: "The rain pot could not be updated." };
+        if (store) {
+          const result = await store.tip(rain.id, userUuid, value, type);
+          rain.pool = Number(result.pool) || rain.pool;
+          rain.balanceType = result.balanceType === "crypto" ? "crypto" : "mm2";
+          return { ok: true, pool: rain.pool, balance: Number(result.balance), balanceType: rain.balanceType };
+        }
+        rain.pool += value;
+        rain.balanceType = type;
+      } catch (error) {
+        return { ok: false, error: error.message || "The rain pot could not be updated." };
       }
-      return { ok: true, pool: rain.pool };
+      return { ok: true, pool: rain.pool, balanceType: type };
     },
 
     async join(userUuid, profile = null) {

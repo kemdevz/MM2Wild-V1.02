@@ -180,7 +180,7 @@ export function attachChatServer(httpServer, options = {}) {
       }
 
       if (payload.type === "roulette_bet") {
-        const result = await roulette.placeBet(user.uuid, identity.name, payload.color, payload.amount, user.avatar);
+        const result = await roulette.placeBet(user.uuid, identity.name, payload.color, payload.amount, user.avatar, payload.balanceType);
         if (!result.ok) {
           socket.send(JSON.stringify({ type: "roulette_error", error: result.error }));
           return;
@@ -189,21 +189,24 @@ export function attachChatServer(httpServer, options = {}) {
           type: "roulette_bet_confirmed",
           bet: result.bet,
           balance: result.balance,
+          balanceType: result.balanceType,
         }));
         return;
       }
 
       if (payload.type === "rain_tip") {
-        const result = await rain.tip(payload.amount);
+        const result = await rain.tip(payload.amount, user.uuid, payload.balanceType);
         if (!result.ok) {
           socket.send(JSON.stringify({ type: "error", error: result.error }));
           return;
         }
+        socket.send(JSON.stringify({ type: "rain_tip_confirmed", balance: result.balance, balanceType: result.balanceType }));
         await broadcastRain();
         const tipMessage = {
           type: "rain-tip",
           sender: identity,
-          amount: Math.max(0, Math.round(Number(payload.amount) || 0)),
+          amount: Math.max(0, result.balanceType === "crypto" ? Math.round((Number(payload.amount) || 0) * 1e8) / 1e8 : Math.round(Number(payload.amount) || 0)),
+          balanceType: result.balanceType,
         };
         recordMessage(tipMessage);
         broadcast(tipMessage);

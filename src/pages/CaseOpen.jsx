@@ -214,7 +214,7 @@ function ItemCard({ item }) {
   );
 }
 
-export default function CaseOpen({ slug }) {
+export default function CaseOpen({ slug, balanceType = "mm2" }) {
   const [caseItem, setCaseItem] = useState(null);
   const [user, setUser] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -356,7 +356,7 @@ export default function CaseOpen({ slug }) {
     stopCaseSounds();
     const audioPreparation = prepareCaseAudio();
     try {
-      const response = await fetch(`/api/cases/${encodeURIComponent(slug)}/open`, { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ quantity, demo }) });
+      const response = await fetch(`/api/cases/${encodeURIComponent(slug)}/open`, { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ quantity, demo, balanceType }) });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || "The case could not be opened.");
       const opening = payload.opening;
@@ -422,8 +422,9 @@ export default function CaseOpen({ slug }) {
       finishTimer.current = window.setTimeout(() => {
         setSpinning(false);
         if (!demo && Number.isFinite(Number(opening.balance))) {
-          setUser((current) => current ? { ...current, mm2_balance: opening.balance } : current);
-          window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: { mm2Balance: opening.balance } }));
+          const balanceField = balanceType === "crypto" ? "crypto_balance" : "mm2_balance";
+          setUser((current) => current ? { ...current, [balanceField]: opening.balance } : current);
+          window.dispatchEvent(new CustomEvent("mm2wild:balance-updated", { detail: balanceType === "crypto" ? { cryptoBalance: opening.balance } : { mm2Balance: opening.balance } }));
         }
       }, 0);
     } catch (openingError) {

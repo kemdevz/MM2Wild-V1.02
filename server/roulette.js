@@ -256,6 +256,7 @@ function createSupabaseStore(env) {
           payout: game.payout,
           profit: game.profit,
           status: game.status,
+          balance_type: game.balanceType,
         }),
       });
       if (!response.ok) throw new Error("Could not persist the roulette bet.");
@@ -319,7 +320,7 @@ function createSupabaseStore(env) {
     async getUser(userUuid) {
       const query = new URLSearchParams({
         uuid: `eq.${userUuid}`,
-        select: "uuid,username,mm2_balance,total_wagered",
+        select: "uuid,username,mm2_balance,crypto_balance,total_wagered",
         limit: "1",
       });
       const response = await request(`mm2wild_users?${query}`);
@@ -328,8 +329,8 @@ function createSupabaseStore(env) {
       return rows[0] || null;
     },
 
-    async deductBalance(userUuid, amount) {
-      const response = await request("rpc/mm2wild_place_roulette_wager", {
+    async deductBalance(userUuid, amount, balanceType = "mm2") {
+      const response = await request("rpc/mm2wild_place_roulette_wager_currency", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -337,6 +338,7 @@ function createSupabaseStore(env) {
         body: JSON.stringify({
           p_user_uuid: userUuid,
           p_amount: amount,
+          p_balance_type: balanceType,
         }),
       });
       const result = await response.json().catch(() => null);
@@ -346,23 +348,17 @@ function createSupabaseStore(env) {
       return { ok: true, balance: Number(result.balance) };
     },
 
-    async creditBalance(userUuid, amount) {
-      const user = await this.getUser(userUuid);
-      if (!user) return { ok: false, error: "Account not found." };
-      const newBalance = Number(user.mm2_balance || 0) + amount;
-      const query = new URLSearchParams({ uuid: `eq.${userUuid}` });
-      await request(`mm2wild_users?${query}`, {
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({ mm2_balance: newBalance }),
+    async creditBalance(userUuid, amount, balanceType = "mm2") {
+      const response = await request("rpc/mm2wild_credit_game_balance", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ p_user_uuid: userUuid, p_amount: amount, p_balance_type: balanceType }),
       });
-      return { ok: true, balance: newBalance };
+      const balance = await response.json().catch(() => null);
+      return response.ok && balance != null ? { ok: true, balance: Number(balance) } : { ok: false, error: "Account not found." };
     },
 
-    async recordBet(userUuid, amount, profit, status, multiplier) {
+    async recordBet(userUuid, amount, profit, status, multiplier, balanceType = "mm2") {
       await request("mm2wild_bets", {
         method: "POST",
         headers: {
@@ -376,6 +372,7 @@ function createSupabaseStore(env) {
           amount,
           profit,
           multiplier,
+          balance_type: balanceType,
         }),
       });
     },
@@ -855,7 +852,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
     const multiplier = ROULETTE_MULTIPLIERS[result];
     const payouts = [];
     for (const [userUuid, userBets] of bets) {
-      let totalPayout = 0;
+      const payoutByType = new Map();
       for (const bet of userBets) {
         const won = bet.color === result;
         const payout = won ? bet.amount * multiplier : 0;
@@ -873,20 +870,21 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
             payout,
             profit,
             status,
+            balanceType: bet.balanceType || "mm2",
           });
         } catch {}
 
         try {
-          await store.recordBet(userUuid, bet.amount, profit, status, won ? multiplier : 0);
+          await store.recordBet(userUuid, bet.amount, profit, status, won ? multiplier : 0, bet.balanceType || "mm2");
         } catch {}
 
-        if (won) totalPayout += payout;
+        if (won) payoutByType.set(bet.balanceType || "mm2", (payoutByType.get(bet.balanceType || "mm2") || 0) + payout);
       }
 
-      if (totalPayout > 0) {
+      for (const [balanceType, totalPayout] of payoutByType) {
         try {
-          const creditResult = await store.creditBalance(userUuid, totalPayout);
-          if (creditResult.ok) payouts.push({ userUuid, payout: totalPayout, balance: creditResult.balance });
+          const creditResult = await store.creditBalance(userUuid, totalPayout, balanceType);
+          if (creditResult.ok) payouts.push({ userUuid, payout: totalPayout, balance: creditResult.balance, balanceType });
         } catch {}
       }
     }
@@ -894,7 +892,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
     const greenBets = [];
     for (const [userUuid, userBets] of bets) {
       const greenAmount = userBets
-        .filter((bet) => bet.color === "green")
+        .filter((bet) => bet.color === "green" && (bet.balanceType || "mm2") === "mm2")
         .reduce((sum, bet) => sum + bet.amount, 0);
       if (greenAmount > 0) greenBets.push({ userUuid, amount: greenAmount });
     }
@@ -904,7 +902,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
       jackpotResult = await store.processJackpot({
         roundId,
         result,
-        totalPot,
+        totalPot: [...bets.values()].flat().filter((bet) => (bet.balanceType || "mm2") === "mm2").reduce((sum, bet) => sum + bet.amount, 0),
         greenBets,
       });
       jackpotAmount = jackpotResult.amount;
@@ -954,7 +952,8 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
         if (user) {
           sendToUser(userUuid, {
             type: "roulette_balance",
-            balance: Number(user.mm2_balance || 0),
+            mm2Balance: Number(user.mm2_balance || 0),
+            cryptoBalance: Number(user.crypto_balance || 0),
             won,
             payout: totalPayout,
             jackpotPayout,
@@ -1005,22 +1004,23 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
       return () => { listeners.delete(listener); };
     },
 
-    async placeBet(userUuid, userName, color, amount, avatar = null) {
+    async placeBet(userUuid, userName, color, amount, avatar = null, balanceType = "mm2") {
       await ready();
       if (phase !== "betting") return { ok: false, error: "Betting is closed for this round." };
       if (!ROULETTE_COLORS.includes(color)) return { ok: false, error: "Invalid color." };
-      const value = Math.max(0, Math.floor(Number(amount) || 0));
+      const wagerType = balanceType === "crypto" ? "crypto" : "mm2";
+      const value = Math.max(0, wagerType === "crypto" ? Math.round((Number(amount) || 0) * 1e8) / 1e8 : Math.floor(Number(amount) || 0));
       if (!value) return { ok: false, error: "Enter a valid bet amount." };
 
-      const deduction = await store.deductBalance(userUuid, value);
+      const deduction = await store.deductBalance(userUuid, value, wagerType);
       if (!deduction.ok) return { ok: false, error: deduction.error };
 
       const existing = bets.get(userUuid) || [];
-      const existingOnColor = existing.find((b) => b.color === color);
+      const existingOnColor = existing.find((b) => b.color === color && b.balanceType === wagerType);
       if (existingOnColor) {
         existingOnColor.amount += value;
       } else {
-        existing.push({ color, amount: value, name: userName, avatar });
+        existing.push({ color, amount: value, name: userName, avatar, balanceType: wagerType });
       }
       bets.set(userUuid, existing);
 
@@ -1034,7 +1034,7 @@ export function createRouletteState({ env = null, now = () => Date.now() } = {})
 
       broadcast({ type: "roulette_pots", pots: publicPots(), jackpot: publicJackpot() });
 
-      return { ok: true, bet: { color, amount: value }, balance: deduction.balance };
+      return { ok: true, bet: { color, amount: value, balanceType: wagerType }, balanceType: wagerType, balance: deduction.balance };
     },
 
     async start() {

@@ -10,7 +10,14 @@ import {
   proxyCoinflipItemImage,
 } from "./coinflip.js";
 import { getCase, listCases, openCase } from "./cases.js";
-import { createBattle, getBattle, listBattles } from "./battles.js";
+import {
+  callBattleBot,
+  cancelBattle,
+  createBattle,
+  getBattle,
+  joinBattle,
+  listBattles,
+} from "./battles.js";
 
 const json = (body, status = 200, extraHeaders = {}) =>
   new Response(JSON.stringify(body), {
@@ -684,7 +691,7 @@ export class ChatRoom {
       }
 
       if (payload.type === "roulette_bet") {
-        const result = await this.roulette.placeBet(userUuid, identity.name, payload.color, payload.amount, account?.avatar_headshot);
+        const result = await this.roulette.placeBet(userUuid, identity.name, payload.color, payload.amount, account?.avatar_headshot, payload.balanceType);
         if (!result.ok) {
           server.send(JSON.stringify({ type: "roulette_error", error: result.error }));
           return;
@@ -693,21 +700,24 @@ export class ChatRoom {
           type: "roulette_bet_confirmed",
           bet: result.bet,
           balance: result.balance,
+          balanceType: result.balanceType,
         }));
         return;
       }
 
       if (payload.type === "rain_tip") {
-        const result = await this.rain.tip(payload.amount);
+        const result = await this.rain.tip(payload.amount, userUuid, payload.balanceType);
         if (!result.ok) {
           server.send(JSON.stringify({ type: "error", error: result.error }));
           return;
         }
+        server.send(JSON.stringify({ type: "rain_tip_confirmed", balance: result.balance, balanceType: result.balanceType }));
         await this.broadcastRain();
         const tipMessage = {
           type: "rain-tip",
           sender: identity,
-          amount: Math.max(0, Math.round(Number(payload.amount) || 0)),
+          amount: Math.max(0, result.balanceType === "crypto" ? Math.round((Number(payload.amount) || 0) * 1e8) / 1e8 : Math.round(Number(payload.amount) || 0)),
+          balanceType: result.balanceType,
         };
         this.history.push(tipMessage);
         if (this.history.length > 50) this.history.shift();
@@ -820,10 +830,11 @@ async function coinflipRequest(request, env) {
       : action === "callBot"
         ? await callCoinflipBot(env, user, body?.gameId)
         : action === "create"
-          ? await createCoinflip(env, user, body?.itemIds, body?.side)
+          ? await createCoinflip(env, user, body?.itemIds, body?.side, body?.balanceType)
           : (() => { throw new Error("Invalid coinflip action."); })();
     const refreshedUser = await resolveSessionUser(sessionCookie, env);
-    return json({ game, balance: Number(refreshedUser?.mm2_balance || 0) }, action === "create" ? 201 : 200);
+    const balanceType = game.balanceType === "crypto" ? "crypto" : "mm2";
+    return json({ game, balanceType, balance: Number(refreshedUser?.[balanceType === "crypto" ? "crypto_balance" : "mm2_balance"] || 0) }, action === "create" ? 201 : 200);
   } catch (error) {
     const message = error.message || "The coinflip could not be updated.";
     const status = /invalid|select|choose|outside|own coinflip|only the creator|between|maximum/i.test(message) ? 400
@@ -1226,7 +1237,8 @@ export default {
       try {
         const battle = await createBattle(env, user, body);
         const refreshedUser = await resolveSessionUser(cookieValue(request, "mm2wild_session"), env);
-        return json({ battle, balance: Number(refreshedUser?.mm2_balance ?? 0) }, 201);
+        const balanceType = battle.balanceType === "crypto" ? "crypto" : "mm2";
+        return json({ battle, balanceType, balance: Number(refreshedUser?.[balanceType === "crypto" ? "crypto_balance" : "mm2_balance"] ?? 0) }, 201);
       } catch (error) {
         const message = error.message || "The battle could not be created.";
         const status = /insufficient balance/i.test(message) ? 409
@@ -1241,6 +1253,29 @@ export default {
         return battle ? json({ battle }) : json({ error: "Battle not found." }, 404);
       } catch (error) {
         return json({ error: error.message || "Could not load this battle." }, 503);
+      }
+    }
+    const battleActionRoute = url.pathname.match(/^\/api\/battles\/(\d+|[0-9a-f-]{36})\/(join|bot|cancel)$/i);
+    if (battleActionRoute && request.method === "POST") {
+      const user = await resolveSessionUser(cookieValue(request, "mm2wild_session"), env);
+      if (!user) return missingSession(request);
+      const body = await request.json().catch(() => ({}));
+      try {
+        const action = battleActionRoute[2];
+        const battle = action === "join"
+          ? await joinBattle(env, user, battleActionRoute[1], body?.slot, body?.key)
+          : action === "bot"
+            ? await callBattleBot(env, user, battleActionRoute[1], body?.slot)
+            : await cancelBattle(env, user, battleActionRoute[1]);
+        const refreshedUser = await resolveSessionUser(cookieValue(request, "mm2wild_session"), env);
+        const balanceType = battle.balanceType === "crypto" ? "crypto" : "mm2";
+        return json({ battle, balanceType, balance: Number(refreshedUser?.[balanceType === "crypto" ? "crypto_balance" : "mm2_balance"] ?? 0) });
+      } catch (error) {
+        const message = error.message || "The battle action could not be completed.";
+        const status = /session/i.test(message) ? 401
+          : /not found/i.test(message) ? 404
+            : /insufficient|no longer|unavailable|already|cannot|only the creator|invalid|level/i.test(message) ? 409 : 503;
+        return json({ error: message }, status);
       }
     }
     const caseRoute = url.pathname.match(/^\/api\/cases\/([a-z0-9]+(?:-[a-z0-9]+)*)(\/open)?$/);
@@ -1259,7 +1294,7 @@ export default {
       const user = demo ? null : await resolveSessionUser(sessionCookie, env);
       if (!demo && !user) return missingSession(request);
       try {
-        const opening = await openCase(env, user, caseRoute[1], body?.quantity, demo);
+        const opening = await openCase(env, user, caseRoute[1], body?.quantity, demo, body?.balanceType);
         return json({ opening }, demo ? 200 : 201);
       } catch (error) {
         const message = error.message || "The case could not be opened.";

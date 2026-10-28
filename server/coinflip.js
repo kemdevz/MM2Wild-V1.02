@@ -58,7 +58,7 @@ async function eosRequest(env, path, body = {}) {
   return data;
 }
 
-async function getFutureEosBlock(env) {
+export async function getFutureEosBlock(env) {
   const info = await eosRequest(env, "get_info");
   const blocksAhead = Math.max(1, Number(env?.COINFLIP_EOS_BLOCKS_AHEAD) || EOS_BLOCKS_AHEAD);
   const blockNumber = Number(info.head_block_num) + blocksAhead;
@@ -126,6 +126,7 @@ function formatGame(row) {
     minimum: Number((Number(row.creator_wager) * 0.95).toFixed(2)),
     maximum: Number((Number(row.creator_wager) * 1.05).toFixed(2)),
     commission: Number(row.commission_rate ?? HUMAN_COMMISSION),
+    balanceType: row.balance_type === "crypto" ? "crypto" : "mm2",
     fairness: {
       hashedSeed: row.server_seed_hash,
       serverSeed: complete ? row.server_seed : null,
@@ -212,18 +213,19 @@ export async function listCoinflipItems(env) {
   return rows.map(formatItem);
 }
 
-export async function createCoinflip(env, user, itemIds, side) {
+export async function createCoinflip(env, user, itemIds, side, balanceType = "mm2") {
   const items = await catalogueItems(env, itemIds);
   const wager = totalValue(items);
   const serverSeed = randomSeed();
   const serverSeedHash = await sha256(serverSeed);
-  const row = await rpc(env, "mm2wild_create_coinflip", {
+  const row = await rpc(env, "mm2wild_create_coinflip_currency", {
     p_user_uuid: user.uuid,
     p_creator_side: side,
     p_creator_items: items,
     p_creator_wager: wager,
     p_server_seed: serverSeed,
     p_server_seed_hash: serverSeedHash,
+    p_balance_type: balanceType === "crypto" ? "crypto" : "mm2",
   });
   return formatGame(row);
 }
@@ -242,7 +244,7 @@ export async function joinCoinflip(env, user, gameId, itemIds) {
   const eos = await getFutureEosBlock(env);
   const resultHash = await sha256(`${openGame.server_seed}:${gameId}:${user.uuid}:${eos.blockHash}`);
   const winnerSide = parseInt(resultHash.slice(0, 8), 16) % 2 === 0 ? "heads" : "tails";
-  const row = await rpc(env, "mm2wild_join_coinflip", {
+  const row = await rpc(env, "mm2wild_join_coinflip_currency", {
     p_game_id: gameId,
     p_user_uuid: user.uuid,
     p_joiner_items: items,
@@ -270,7 +272,7 @@ export async function callCoinflipBot(env, user, gameId) {
   const eos = await getFutureEosBlock(env);
   const resultHash = await sha256(`${openGame.server_seed}:${gameId}:bot:${bot[0]}:${eos.blockHash}`);
   const winnerSide = Number.parseInt(resultHash.slice(0, 8), 16) % 2 === 0 ? "heads" : "tails";
-  const row = await rpc(env, "mm2wild_call_coinflip_bot", {
+  const row = await rpc(env, "mm2wild_call_coinflip_bot_currency", {
     p_game_id: gameId,
     p_user_uuid: user.uuid,
     p_bot_name: bot[0],

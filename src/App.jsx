@@ -96,21 +96,9 @@ export default function App() {
       const table = event.detail?.table;
       if (!table) return;
 
-      const relevantTables = pathname.startsWith("/account/")
-        ? ["mm2wild_users", "mm2wild_bets", "mm2wild_transactions", "mm2wild_tips", "mm2wild_sessions", "mm2wild_fairness"]
-        : pathname === "/leaderboard"
-          ? ["mm2wild_users"]
-          : pathname === "/rewards"
-            ? ["mm2wild_users"]
-            : pathname === "/affiliates"
-              ? ["mm2wild_affiliates", "mm2wild_users"]
-              : pathname.startsWith("/games/cases")
-                ? ["mm2wild_cases"]
-                : pathname === "/games/coinflip"
-                  ? ["mm2wild_coinflip"]
-                  : pathname.startsWith("/games/battles")
-                    ? ["mm2wild_battles", "mm2wild_cases"]
-                    : [];
+      // Transactional pages update their own live state. Remounting them for every
+      // users/bets change resets tabs, animations and scroll positions.
+      const relevantTables = pathname.startsWith("/games/cases") ? ["mm2wild_cases"] : [];
 
       if (!relevantTables.includes(table)) return;
       window.clearTimeout(refreshTimer);
@@ -215,19 +203,19 @@ export default function App() {
           ) : isAffiliatesPage ? (
             <Affiliates />
           ) : isRoulettePage ? (
-            <Roulette />
+            <Roulette balanceType={selectedBalanceType} />
           ) : isCoinflipPage ? (
-            <Coinflip />
+            <Coinflip balanceType={selectedBalanceType} />
           ) : isCasesPage ? (
             <Cases />
           ) : isBattleCreatePage ? (
-            <BattleCreate />
+            <BattleCreate balanceType={selectedBalanceType} />
           ) : isBattlesPage ? (
             <Battles />
           ) : battleMatch ? (
-            <Battle id={battleMatch[1]} />
+            <Battle id={battleMatch[1]} balanceType={selectedBalanceType} />
           ) : caseOpenMatch ? (
-            <CaseOpen slug={caseOpenMatch[1]} />
+            <CaseOpen slug={caseOpenMatch[1]} balanceType={selectedBalanceType} />
           ) : (
             <Home />
           )}
